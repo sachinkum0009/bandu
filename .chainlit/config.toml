@@ -115,7 +115,7 @@ alert_style = "modern"
 logo_file_url = "https://raw.githubusercontent.com/sachinkum0009/bandu/main/media/rai_agents.png"
 
 # Load assistant avatar image directly from URL.
-default_avatar_file_url = ""
+default_avatar_file_url = "https://raw.githubusercontent.com/sachinkum0009/bandu/main/media/rai_agent_avatar.png"
 
 # Specify a custom build directory for the frontend.
 # This can be used to customize the frontend code.

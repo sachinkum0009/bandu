@@ -14,3 +14,7 @@ chainlit run app.py --host 0.0.0.0
 ## UI
 
 ![App UI](media/app_ui.png)
+
+## Image Credits
+
+Images used in this repository are downloaded from [Flaticon](https://www.flaticon.com/).

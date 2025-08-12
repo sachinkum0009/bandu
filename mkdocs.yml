@@ -1,0 +1,50 @@
+site_name: Bandu
+
+site_description:  Integrating RAI Agents
+site_url: https://sachinkum0009.github.io/bandu/
+site_author: Sachin Kumar
+repo_url: https://github.com/sachinkum0009/bandu
+repo_name: bandu
+
+theme:
+  name: material
+  font:
+    text: Roboto
+    code: Roboto Mono
+  # favicon: ./favicon.png
+  icon:
+    logo: material/robot-happy
+    previous: fontawesome/solid/angle-left
+    next: fontawesome/solid/angle-right
+  features:
+    - navigation.footer
+    - navigation.tabs
+    - navigation.sections
+    - toc.follow
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.select
+
+  palette:
+    # Light Mode
+    - scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+      primary: green
+      accent: yellow
+
+    # Dark Mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+      primary: yellow grey
+      accent: deep green
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md

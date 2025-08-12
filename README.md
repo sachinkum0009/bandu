@@ -13,7 +13,7 @@ chainlit run app.py --host 0.0.0.0
 
 ## UI
 
-![App UI](media/app_ui.png)
+![App UI](docs/media/app_ui.png)
 
 ## Image Credits
 

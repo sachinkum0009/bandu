@@ -16,6 +16,7 @@ from rai.agents.langchain import (
     HRICallbackHandler,
     ReActAgentState,
     create_react_runnable,
+    ReActAgent
 )
 from rai.agents.langchain.core import create_conversational_agent
 from rai.communication.ros2 import (
@@ -25,6 +26,7 @@ from rai.communication.ros2 import (
     ROS2Message,
 )
 from rai.messages.multimodal import SystemMultimodalMessage
+from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
 import rclpy
 from agents.tools import GetRobotTemperatureTool
@@ -38,6 +40,7 @@ def create_agent():
 
     tools: List[BaseTool] = [
         GetRobotTemperatureTool(connector=connector),
+        *ROS2Toolkit(connector=connector).get_tools(),
     ]
 
     llm = get_llm_model(model_type="complex_model", streaming=True)
@@ -49,4 +52,9 @@ def create_agent():
         tools=tools,
         system_prompt=embodiment_info.to_langchain(),
     )
+    # agent = create_react_runnable(
+    #     llm=llm,
+    #     tools=tools,
+    #     system_prompt=embodiment_info.to_langchain(),
+    # )
     return agent

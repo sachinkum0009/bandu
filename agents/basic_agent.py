@@ -29,7 +29,7 @@ from rai.messages.multimodal import SystemMultimodalMessage
 from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
 import rclpy
-from agents.tools import GetRobotTemperatureTool
+from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
 def create_agent():
     rclpy.init()
@@ -40,7 +40,9 @@ def create_agent():
 
     tools: List[BaseTool] = [
         GetRobotTemperatureTool(connector=connector),
+        TellMeAJokeTool(connector=connector),
         *ROS2Toolkit(connector=connector).get_tools(),
+        GetROS2ImageTool(connector=connector),
     ]
 
     llm = get_llm_model(model_type="complex_model", streaming=True)

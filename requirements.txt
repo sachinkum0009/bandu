@@ -2,5 +2,6 @@ rai-core
 rai-whoami
 chainlit
 grandalf
+mkdocstrings
 mkdocstrings-python
 mkdocs-material

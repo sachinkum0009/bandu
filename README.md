@@ -17,7 +17,7 @@ It is a multi agent based application where each agent has different capabilitie
 
 ## Hierarchical Agents
 
-![Hierarchical Agents](docs/media/research_graph.png)
+![Hierarchical Agents](docs/media/hierarchical_graph.png)
 
 ## Installation steps
 

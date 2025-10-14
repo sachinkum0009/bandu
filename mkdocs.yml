@@ -44,6 +44,10 @@ theme:
       primary: yellow grey
       accent: deep green
 
+plugins:
+- search
+- mkdocstrings
+
 nav:
   - Home: index.md
   - Installation: installation.md

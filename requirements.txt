@@ -1,3 +1,6 @@
 rai-core
 rai-whoami
 chainlit
+grandalf
+mkdocstrings-python
+mkdocs-material

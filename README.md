@@ -15,6 +15,10 @@ It is a multi agent based application where each agent has different capabilitie
 - Built using Chainlit for easy deployment and interaction
 - LLM model used: GPT-4-Turbo (can be changed in the code to use other models)
 
+## Hierarchical Agents
+
+![Hierarchical Agents](docs/media/research_graph.png)
+
 ## Installation steps
 
 ```bash
@@ -24,6 +28,7 @@ pip install -r requirements.txt
 # start app
 chainlit run app.py --host 0.0.0.0
 ```
+
 
 ## UI
 

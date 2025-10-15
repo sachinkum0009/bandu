@@ -17,15 +17,15 @@ class GetRobotTemperatureToolInput(BaseModel):
 
 # Tool for getting robot temperature
 class GetRobotTemperatureTool(BaseROS2Tool):
-    """Tool for getting the robot temperature (returns constant 20°C)."""
+    """Tool for getting the robot temperature."""
     name: str = "get_robot_temperature"
-    description: str = "Get the robot temperature (returns constant 20°C)"
+    description: str = "Get the robot temperature"
     args_schema: Type[GetRobotTemperatureToolInput] = GetRobotTemperatureToolInput  # type: ignore
 
     def _run(self) -> str:
         """Return the robot temperature as a constant value."""
         print("temperature tool is called")
-        return "The robot temperature is 20°C"
+        return "The robot temperature is 55°C"
 
 class TellMeAJokeInput(BaseModel):
     """

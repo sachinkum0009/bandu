@@ -16,8 +16,8 @@ class UsageMetadata(BaseModel):
     total_tokens: int
 
 
-class ResponseMetadata(BaseModel):
-    """Metadata from AI model responses"""
+class OllamaResponseMetadata(BaseModel):
+    """Metadata from Ollama AI model responses"""
     model: str
     created_at: str
     done: bool
@@ -29,6 +29,35 @@ class ResponseMetadata(BaseModel):
     eval_count: int
     eval_duration: int
     model_name: str
+
+
+class OpenAIResponseMetadata(BaseModel):
+    """Metadata from OpenAI model responses"""
+    finish_reason: str
+    model_name: str
+    system_fingerprint: Optional[str] = None
+    service_tier: Optional[str] = None
+
+
+class ResponseMetadata(BaseModel):
+    """Flexible metadata that can handle both Ollama and OpenAI formats"""
+    # OpenAI fields
+    finish_reason: Optional[str] = None
+    model_name: Optional[str] = None
+    system_fingerprint: Optional[str] = None
+    service_tier: Optional[str] = None
+    
+    # Ollama fields
+    model: Optional[str] = None
+    created_at: Optional[str] = None
+    done: Optional[bool] = None
+    done_reason: Optional[str] = None
+    total_duration: Optional[int] = None
+    load_duration: Optional[int] = None
+    prompt_eval_count: Optional[int] = None
+    prompt_eval_duration: Optional[int] = None
+    eval_count: Optional[int] = None
+    eval_duration: Optional[int] = None
 
 
 class ToolCall(BaseModel):
@@ -60,7 +89,7 @@ class AIMessage(BaseModel):
     """Message from AI agent"""
     content: str
     additional_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    response_metadata: ResponseMetadata
+    response_metadata: Dict[str, Any] = Field(default_factory=dict)  # Changed to flexible dict
     id: str
     tool_calls: Optional[List[ToolCall]] = None
     usage_metadata: Optional[UsageMetadata] = None
@@ -129,28 +158,58 @@ class ChunkData(BaseModel):
             messages = []
             
             for msg_data in agent_data["messages"]:
-                # Determine message type based on content structure
-                msg_dict = msg_data if isinstance(msg_data, dict) else msg_data.__dict__
-                
-                # Logic to determine message type
-                if isinstance(msg_dict.get("content"), list):
-                    class_name = "SystemMultimodalMessage"
-                elif "tool_call_id" in msg_dict:
-                    class_name = "ToolMessage"
-                elif "tool_calls" in msg_dict or "usage_metadata" in msg_dict:
-                    class_name = "AIMessage"
+                # Handle LangChain message objects directly
+                if hasattr(msg_data, '__class__') and hasattr(msg_data, 'content'):
+                    # This is a LangChain message object
+                    if msg_data.__class__.__name__ == "SystemMultimodalMessage":
+                        messages.append(SystemMultimodalMessage(
+                            content=msg_data.content,
+                            additional_kwargs=getattr(msg_data, 'additional_kwargs', {}),
+                            response_metadata=getattr(msg_data, 'response_metadata', {}),
+                            id=getattr(msg_data, 'id', ''),
+                            images=getattr(msg_data, 'images', [])
+                        ))
+                    elif msg_data.__class__.__name__ == "HumanMessage":
+                        messages.append(HumanMessage(
+                            content=msg_data.content,
+                            additional_kwargs=getattr(msg_data, 'additional_kwargs', {}),
+                            response_metadata=getattr(msg_data, 'response_metadata', {}),
+                            id=getattr(msg_data, 'id', '')
+                        ))
+                    elif msg_data.__class__.__name__ == "AIMessage":
+                        messages.append(AIMessage(
+                            content=msg_data.content,
+                            additional_kwargs=getattr(msg_data, 'additional_kwargs', {}),
+                            response_metadata=getattr(msg_data, 'response_metadata', {}),
+                            id=getattr(msg_data, 'id', ''),
+                            tool_calls=getattr(msg_data, 'tool_calls', None),
+                            usage_metadata=getattr(msg_data, 'usage_metadata', None)
+                        ))
+                    elif msg_data.__class__.__name__ == "ToolMessage":
+                        messages.append(ToolMessage(
+                            content=msg_data.content,
+                            additional_kwargs=getattr(msg_data, 'additional_kwargs', {}),
+                            response_metadata=getattr(msg_data, 'response_metadata', {}),
+                            id=getattr(msg_data, 'id', ''),
+                            name=getattr(msg_data, 'name', ''),
+                            tool_call_id=getattr(msg_data, 'tool_call_id', '')
+                        ))
                 else:
-                    class_name = "HumanMessage"
-                
-                # Convert to appropriate message type
-                if class_name == "SystemMultimodalMessage":
-                    messages.append(SystemMultimodalMessage(**msg_dict))
-                elif class_name == "HumanMessage":
-                    messages.append(HumanMessage(**msg_dict))
-                elif class_name == "AIMessage":
-                    messages.append(AIMessage(**msg_dict))
-                elif class_name == "ToolMessage":
-                    messages.append(ToolMessage(**msg_dict))
+                    # Handle dictionary format (fallback)
+                    msg_dict = msg_data if isinstance(msg_data, dict) else msg_data.__dict__
+                    
+                    # Logic to determine message type
+                    if isinstance(msg_dict.get("content"), list):
+                        messages.append(SystemMultimodalMessage(**msg_dict))
+                    elif "tool_call_id" in msg_dict:
+                        messages.append(ToolMessage(**msg_dict))
+                    elif ("tool_calls" in msg_dict or 
+                          "usage_metadata" in msg_dict or 
+                          msg_dict.get("response_metadata", {}).get("finish_reason") or
+                          msg_dict.get("response_metadata", {}).get("model_name")):
+                        messages.append(AIMessage(**msg_dict))
+                    else:
+                        messages.append(HumanMessage(**msg_dict))
             
             agents[agent_id] = AgentConversation(messages=messages)
         
@@ -178,65 +237,43 @@ if __name__ == "__main__":
                 },
                 {
                     'content': '',
-                    'additional_kwargs': {},
+                    'additional_kwargs': {'tool_calls': [{'index': 0, 'id': 'call_494dJxrnvoBUskZ3pxad65vt', 'function': {'arguments': '{}', 'name': 'get_robot_temperature'}, 'type': 'function'}]},
                     'response_metadata': {
-                        'model': 'llama3.1',
-                        'created_at': '2025-09-29T12:10:20.538996893Z',
-                        'done': True,
-                        'done_reason': 'stop',
-                        'total_duration': 1068197635,
-                        'load_duration': 38550583,
-                        'prompt_eval_count': 1325,
-                        'prompt_eval_duration': 617805157,
-                        'eval_count': 14,
-                        'eval_duration': 409733455,
-                        'model_name': 'llama3.1'
+                        'finish_reason': 'tool_calls',
+                        'model_name': 'gpt-4o-2024-08-06',
+                        'system_fingerprint': 'fp_cbf1785567',
+                        'service_tier': 'default'
                     },
                     'id': 'run--9498acb4-2063-4218-beb0-bdb9a9c7e6a1-0',
                     'tool_calls': [
                         {
                             'name': 'get_robot_temperature',
                             'args': {},
-                            'id': '9b52eb06-56d4-446c-920b-dc3b1e519f99',
+                            'id': 'call_494dJxrnvoBUskZ3pxad65vt',
                             'type': 'tool_call'
                         }
-                    ],
-                    'usage_metadata': {
-                        'input_tokens': 1325,
-                        'output_tokens': 14,
-                        'total_tokens': 1339
-                    }
+                    ]
                 },
                 {
                     'content': 'The robot temperature is 55°C',
                     'name': 'get_robot_temperature',
                     'id': '174e608d-8f01-45af-8e29-dbc9a9324f4a',
-                    'tool_call_id': '9b52eb06-56d4-446c-920b-dc3b1e519f99',
+                    'tool_call_id': 'call_494dJxrnvoBUskZ3pxad65vt',
                     'additional_kwargs': {},
                     'response_metadata': {}
                 },
                 {
-                    'content': "I'd be happy to! I've called the GetRobotTemperatureTool for you, and according to the output, the current temperature of the robot is 55°C. Is there anything else I can help you with regarding the robot's temperature?",
+                    'content': 'The current temperature of the robot is 55°C. If you have any concerns about this temperature or need further assistance, please let me know!',
                     'additional_kwargs': {},
                     'response_metadata': {
-                        'model': 'llama3.1',
-                        'created_at': '2025-09-29T12:10:21.493382129Z',
-                        'done': True,
-                        'done_reason': 'stop',
-                        'total_duration': 950913840,
-                        'load_duration': 38552143,
-                        'prompt_eval_count': 189,
-                        'prompt_eval_duration': 8014234,
-                        'eval_count': 50,
-                        'eval_duration': 902892376,
-                        'model_name': 'llama3.1'
+                        'finish_reason': 'stop',
+                        'model_name': 'gpt-4o-2024-08-06',
+                        'system_fingerprint': 'fp_cbf1785567',
+                        'service_tier': 'default'
                     },
                     'id': 'run--b6ee2631-f6cd-4758-b3c0-50723d3568b4-0',
-                    'usage_metadata': {
-                        'input_tokens': 189,
-                        'output_tokens': 50,
-                        'total_tokens': 239
-                    }
+                    'tool_calls': None,
+                    'usage_metadata': None
                 }
             ]
         }

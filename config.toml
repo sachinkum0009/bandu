@@ -25,12 +25,12 @@ embeddings_model = "llama3.2"
 project = "rai"
 
 [tracing.langfuse]
-use_langfuse = false
-host = "http://localhost:3000"
+use_langfuse = true
+host = "https://cloud.langfuse.com"
 
 [tracing.langsmith]
 use_langsmith = false
-host = "http://localhost:3001"
+host = "https://api.smith.langchain.com"
 
 [asr]
 recording_device_name = "default"

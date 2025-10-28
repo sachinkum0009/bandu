@@ -150,7 +150,7 @@ async def navigator_agent():
 @cl.on_message
 async def on_message(message: cl.Message):
     print(f"Received message: {message.content}")
-    tool_res = await supervisor()
+    
     image = cl.Image(name="robot", path="/media/asus/backup/zzzzz/ros2/rtw_workspaces/rolling_generic_ws/src/bandu/agents/nodes/apple-table.jpg")
     msg = cl.Message(content="", author="Agent")
     await msg.update()
@@ -162,41 +162,73 @@ async def on_message(message: cl.Message):
     )
     chunks = []
     agent_responses: List[str] = []
-    for chunk in graph.stream({"messages": [message.content]}, config={"callbacks": get_tracing_callbacks()}):
-        print(f"Chunk: {chunk}")
-        # if "supervisor" in chunk:
-        #     continue
-
-        # chunk_data = ChunkData.from_dict(chunk)
-        # last_ai_message = chunk_data.get_last_ai_message()
+    
+    # Create parent supervisor step
+    async with cl.Step(name="Supervisor", type="llm") as supervisor_step:
+        supervisor_step.input = message.content
         
-        # if last_ai_message:
-        #     print(f"last ai message: {last_ai_message}")
-        #     # Stream the AI message content to the user
-        #     await msg.stream_token(last_ai_message)
-        #     full_content += last_ai_message
+        for chunk in graph.stream({"messages": [message.content]}, config={"callbacks": get_tracing_callbacks()}):
+            print(f"Chunk: {chunk}")
+            # if "supervisor" in chunk:
+            #     continue
 
-        # print("-----")
-        chunks.append(chunk)
-        agent_response = next(iter(chunk.items()))[1]  # .get("messages", [""])
-        print(f"Agent Response: {agent_response}")
-        
-        # Call the appropriate agent function based on 'next' value
-        if "next" in agent_response:
-            next_agent = agent_response["next"]
-            if next_agent == "basic":
-                await basic_agent()
-            elif next_agent == "navigator":
-                await navigator_agent()
-            elif next_agent == "manipulator":
-                await manipulator_agent()
-        
-        # Extract content from the agent response
-        if "messages" in agent_response and len(agent_response["messages"]) > 0:
-            message_content = agent_response["messages"][-1].content
-            print(f"Message Content: {message_content}")
-            agent_responses.append(message_content)
+            # chunk_data = ChunkData.from_dict(chunk)
+            # last_ai_message = chunk_data.get_last_ai_message()
+            
+            # if last_ai_message:
+            #     print(f"last ai message: {last_ai_message}")
+            #     # Stream the AI message content to the user
+            #     await msg.stream_token(last_ai_message)
+            #     full_content += last_ai_message
 
+            # print("-----")
+            chunks.append(chunk)
+            agent_response = next(iter(chunk.items()))[1]  # .get("messages", [""])
+            print(f"Agent Response: {agent_response}")
+            
+            # Call the appropriate agent function based on 'next' value
+            if "next" in agent_response:
+                next_agent = agent_response["next"]
+                if next_agent == "basic":
+                    async with cl.Step(name="Basic Agent", type="llm") as step:
+                        step.output = "Processing with basic agent"
+                elif next_agent == "navigator":
+                    async with cl.Step(name="Navigator Agent", type="llm") as step:
+                        step.output = "Processing with navigator agent"
+                elif next_agent == "manipulator":
+                    async with cl.Step(name="Manipulator Agent", type="llm") as step:
+                        step.output = "Processing with manipulator agent"
+            
+            # Extract content from the agent response
+            if "messages" in agent_response and len(agent_response["messages"]) > 0:
+                message_content = agent_response["messages"][-1].content
+                print(f"Message Content: {message_content}")
+                agent_responses.append(message_content)
+                
+                # Update the step output with the actual message content if we just created a step
+                if "next" in agent_response:
+                    async with cl.Step(name=f"{agent_response['next'].title()} Agent Response", type="llm") as step:
+                        step.output = message_content
+
+        supervisor_step.output = f"Coordinated {len(agent_responses)} agent responses"
+        
+        # Summarizer as a child step
+        print(f"summarizing {len(agent_responses)} agent responses")
+        prompt = "please read the following responses and provide a brief response to the user. "
+        summary_prompt = prompt + message.content + " ".join(agent_responses)
+        
+        async with cl.Step(name="Summarizer", type="llm") as summarizer_step:
+            summarizer_step.input = summary_prompt
+            summary_content = ""
+            
+            # Stream the summarized response
+            async for chunk in summarizer_llm.astream(summary_prompt):
+                if hasattr(chunk, 'content') and chunk.content:
+                    content = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
+                    await msg.stream_token(content)
+                    summary_content += content
+            
+            summarizer_step.output = summary_content
         
         # # Print tool name and ToolMessage content if tools are used
         # if "tools" in chunk and "messages" in chunk["tools"]:
@@ -241,22 +273,6 @@ async def on_message(message: cl.Message):
         # Continue processing other chunks as needed
         # if "thinker" not in chunk:
         #     continue
-    # print("out of for loop")
-    # response = chunks[-2]
-    # print(response)
-    # key, value = next(iter(response.items()))
-    # final_response = value["messages"][-1].content
-    # print(f"Final Response from chunks: {final_response}")
-
-    print(f"summarizing {len(agent_responses)} agent responses")
-    prompt = "please read the following responses and provide a brief response to the user. "
-    summary_prompt = prompt + message.content + " ".join(agent_responses)
-    
-    # Stream the summarized response
-    async for chunk in summarizer_llm.astream(summary_prompt):
-        if hasattr(chunk, 'content') and chunk.content:
-            content = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
-            await msg.stream_token(content)
     
     print(f"Final summarized response: {msg.content}")
     print("-"*100)

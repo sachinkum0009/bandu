@@ -25,18 +25,18 @@ from rai.communication.ros2 import (
     ROS2HRIMessage,
     ROS2Message,
 )
-from rai.messages.multimodal import SystemMultimodalMessage
+from rai.messages.multimodal import SystemMultimodalMessage, AIMessage, HumanMultimodalMessage
 from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
 import rclpy
 from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
-def create_agent():
-    rclpy.init()
-    connector = ROS2Connector(executor_type="single_threaded")
+def create_agent(connector: ROS2Connector):
+    # rclpy.init()
+    # connector = ROS2Connector(executor_type="single_threaded")
 
-    node = connector.node
-    node.declare_parameter("conversion_ratio", 1.0)
+    # node = connector.node
+    # node.declare_parameter("conversion_ratio", 1.0)
 
     tools: List[BaseTool] = [
         GetRobotTemperatureTool(connector=connector),

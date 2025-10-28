@@ -6,7 +6,8 @@ date: 2025-09-07
 """
 
 from enum import Enum
-from typing import List, Optional, Literal, TypedDict, Tuple
+from typing import List, Optional, Literal, TypedDict, Tuple, Callable
+from rai import get_llm_model
 from rai.communication.ros2 import (
     ROS2Connector,
     ROS2HRIConnector,
@@ -19,8 +20,6 @@ from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.graph.state import CompiledStateGraph
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, trim_messages
-from langchain_ollama import ChatOllama
-from langchain_openai import ChatOpenAI
 
 class State(MessagesState):
     next: str
@@ -35,9 +34,32 @@ class AgentType(str, Enum):
     PERCEPTION = "perception"
     MANIPULATION = "manipulation"
 
+def make_summarizer_node(llm: BaseChatModel) -> Callable[[State], Command[Literal["supervisor"]]]:
+    system_prompt = (
+        "You are a summarizer tasked with summarizing the conversation between the user and multiple agents."
+        " Summarize the conversation in a concise manner."
+    )
+    
+    def summarizer_node(state: State) -> Command[Literal["supervisor"]]:
+        """An LLM-based summarizer."""
+        messages = [
+            {"role": "system", "content": system_prompt},
+        ] + state["messages"]
+        trimmed_messages = trim_messages(messages, max_tokens=3000, llm=llm)
+        response = llm.invoke(trimmed_messages)
+        return Command(
+            update={
+                "messages": [
+                    HumanMessage(content=response.content, name="summarizer")
+                ]
+            },
+            goto="supervisor",
+        )
+    
+    return summarizer_node
 
 
-def make_supervisor_node(llm: BaseChatModel, members: list[str]) -> str:
+def make_supervisor_node(llm: BaseChatModel, members: list[str]) -> Callable[[State], Command]:
     options = ["FINISH"] + members
     system_prompt = (
         "You are a supervisor tasked with help the user by selecting appropriate agent which will be used to answer the user query in a conversation"
@@ -46,6 +68,7 @@ def make_supervisor_node(llm: BaseChatModel, members: list[str]) -> str:
         "Navigation agent can be used to navigate the robot to a location."
         "Manipulation agent can be used to control the robot's arms and grippers."
         "Perception agent can be used to get images from the robot's camera."
+        "Summarize the response from the workers and provide a final answer."
         # " respond with the worker to act next. If the task is complete and end the conversation"
         # " task and respond with their results and status. When finished,"
         # " respond with FINISH."
@@ -82,10 +105,11 @@ def create_node(state: State, agent: CompiledStateGraph, agent_name: str) -> Com
     )
 
 def make_team(members: List[Tuple[str, CompiledStateGraph]]):
-    # llm = ChatOllama(model="llama3.1", temperature=0.7)
-    llm = ChatOpenAI(model="gpt-4", temperature=0.7)
+    llm = get_llm_model(model_type="complex_model", streaming=True)
     sub_agents = [member[0] for member in members]
     supervisor_node = make_supervisor_node(llm, sub_agents)
+
+    summarizer_node = make_summarizer_node(llm)
     
     graph = StateGraph(State)
     graph.add_node("supervisor", supervisor_node)

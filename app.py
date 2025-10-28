@@ -110,6 +110,21 @@ graph.get_graph().draw_mermaid_png(output_file_path="team_graph43.png")
 ## summarizer
 summarizer_llm = get_llm_model(model_type="simple_model", streaming=True)
 
+@cl.password_auth_callback
+async def auth_callback(username: str, password: str):
+    # Fetch the user matching username from your database
+    # and compare the hashed password with the value stored in the database
+    if (username, password) == ("admin", "admin"):
+        return cl.User(
+            identifier="admin", metadata={"role": "admin", "provider": "credentials"}
+        )
+    elif (username, password) == ("sachinkum0009", "123456"):
+        return cl.User(
+            identifier="user", metadata={"role": "user", "provider": "credentials"}
+        )
+    else:
+        return None
+
 
 @cl.set_starters
 async def set_starters(user=None):

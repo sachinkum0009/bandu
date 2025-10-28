@@ -51,4 +51,5 @@ plugins:
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Configuration: configure_llms.md
   - Usage: usage.md

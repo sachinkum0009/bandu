@@ -29,7 +29,24 @@ from langchain_core.tools import BaseTool
 
 from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 from rai.tools.ros2 import ROS2Toolkit
-from typing import List
+from typing import List, Dict, Any
+from langchain_core.callbacks import BaseCallbackHandler
+
+# Custom callback to track tool usage
+class ToolTrackingCallback(BaseCallbackHandler):
+    def __init__(self):
+        self.tool_calls = []
+        self.tool_results = []
+    
+    def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs) -> None:
+        tool_name = serialized.get("name", "Unknown Tool")
+        self.tool_calls.append({"name": tool_name, "input": input_str})
+        print(f"[ToolTracker] Tool started: {tool_name}")
+    
+    def on_tool_end(self, output: str, **kwargs) -> None:
+        self.tool_results.append({"output": output})
+        print(f"[ToolTracker] Tool ended with output: {output}")
+
 
 history = []
 
@@ -122,52 +139,25 @@ async def on_app_startup():
 async def on_chat_start():
     print("Chainlit Started")
 
-@cl.step(type="tool")
-async def thinking():
-    await cl.sleep(1)
-    return "tool result"
-
-@cl.step(type="llm")
-async def supervisor():
-    await cl.sleep(1)
-    return "supervisor result"
-
-@cl.step(type="llm")
-async def basic_agent():
-    await cl.sleep(1)
-    return "basic agent result"
-
-@cl.step(type="llm")
-async def manipulator_agent():
-    await cl.sleep(1)
-    return "manipulator agent result"
-
-@cl.step(type="llm")
-async def navigator_agent():
-    await cl.sleep(1)
-    return "navigator agent result"
-
 @cl.on_message
 async def on_message(message: cl.Message):
     print(f"Received message: {message.content}")
     
-    image = cl.Image(name="robot", path="/media/asus/backup/zzzzz/ros2/rtw_workspaces/rolling_generic_ws/src/bandu/agents/nodes/apple-table.jpg")
     msg = cl.Message(content="", author="Agent")
     await msg.update()
-    full_content = ""
     history.append(message.content)
     tool_name = None
-    initial_message = get_initial_megamind_state(
-        task=message.content
-    )
     chunks = []
     agent_responses: List[str] = []
+    
+    # Create tool tracking callback
+    tool_tracker = ToolTrackingCallback()
     
     # Create parent supervisor step
     async with cl.Step(name="Supervisor", type="llm") as supervisor_step:
         supervisor_step.input = message.content
         
-        for chunk in graph.stream({"messages": [message.content]}, config={"callbacks": get_tracing_callbacks()}):
+        for chunk in graph.stream({"messages": [message.content]}, config={"callbacks": [*get_tracing_callbacks(), tool_tracker]}):
             print(f"Chunk: {chunk}")
             # if "supervisor" in chunk:
             #     continue
@@ -185,6 +175,46 @@ async def on_message(message: cl.Message):
             chunks.append(chunk)
             agent_response = next(iter(chunk.items()))[1]  # .get("messages", [""])
             print(f"Agent Response: {agent_response}")
+            
+            # Check tool tracker for new tool calls
+            if tool_tracker.tool_calls:
+                for idx, tool_call in enumerate(tool_tracker.tool_calls):
+                    tool_name = tool_call.get("name", "Unknown Tool")
+                    tool_input = tool_call.get("input", "")
+                    async with cl.Step(name=f"🔧 {tool_name}", type="tool") as tool_step:
+                        tool_step.input = tool_input
+                        # Check if we have a corresponding result
+                        if idx < len(tool_tracker.tool_results):
+                            tool_step.output = tool_tracker.tool_results[idx].get("output", "")
+                        else:
+                            tool_step.output = "Executing..."
+                
+                # Clear the tracked calls after creating steps
+                tool_tracker.tool_calls = []
+                tool_tracker.tool_results = []
+            
+            # Check for tool calls in ALL messages (including history)
+            if "messages" in agent_response:
+                all_messages = agent_response["messages"] if isinstance(agent_response["messages"], list) else [agent_response["messages"]]
+                
+                for msg_item in all_messages:
+                    # Check if message has tool_calls (AIMessage calling a tool)
+                    if hasattr(msg_item, 'tool_calls') and msg_item.tool_calls:
+                        for tool_call in msg_item.tool_calls:
+                            tool_name = tool_call.get('name', 'Unknown Tool')
+                            tool_args = tool_call.get('args', {})
+                            print(f"Found tool call: {tool_name} with args: {tool_args}")
+                            async with cl.Step(name=f"🔧 {tool_name}", type="tool") as tool_step:
+                                tool_step.input = str(tool_args) if tool_args else "No arguments"
+                                tool_step.output = f"Executing tool: {tool_name}"
+                    
+                    # Check if message is a ToolMessage (tool result)
+                    if msg_item.__class__.__name__ == 'ToolMessage':
+                        tool_name = getattr(msg_item, 'name', 'Unknown Tool')
+                        tool_content = getattr(msg_item, 'content', '')
+                        print(f"Found tool result: {tool_name} = {tool_content}")
+                        async with cl.Step(name=f"✓ {tool_name} result", type="tool") as tool_step:
+                            tool_step.output = str(tool_content)
             
             # Call the appropriate agent function based on 'next' value
             if "next" in agent_response:

@@ -4,11 +4,15 @@ Megamind Agent to manage multiple agents
 author: Sachin Kumar
 date: 2025-09-07
 """
-
 import rclpy
 
-from rai.agents.langchain.core.megamind import MegamindState, create_megamind, Executor
-from rai import get_llm_model
+from rai.agents.langchain.core.megamind import (
+    MegamindState,
+    create_megamind,
+    Executor,
+    get_initial_megamind_state,
+)
+from rai import get_llm_model, get_tracing_callbacks
 from rai.communication.ros2 import (
     ROS2Connector,
     ROS2HRIConnector,
@@ -16,14 +20,19 @@ from rai.communication.ros2 import (
     ROS2Message,
 )
 from rai.messages import HumanMultimodalMessage
-
+from rai.tools.ros2 import ROS2Toolkit
 from langchain_core.tools import BaseTool
 
 from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 from typing import List
 
+from megamind_response import MegamindResponse
+chunks = []
 
 def test(connector: ROS2Connector):
+    """
+    Test Megamind agent with multiple executors
+    """
     tools: List[BaseTool] = [
         GetRobotTemperatureTool(connector=connector),
         TellMeAJokeTool(connector=connector),
@@ -33,12 +42,14 @@ def test(connector: ROS2Connector):
         name="basic_executor",
         llm=llm,
         tools=tools,
-        system_prompt="You are a helpful assistant that can perform basic tasks.",
+        system_prompt="You are a helpful assistant that has tools like get_robot_temperature to get the current temperature of the robot.",
     )
     navigation_executor = Executor(
         name="navigation_executor",
         llm=llm,
-        tools=tools,
+        tools=[
+            *ROS2Toolkit(connector=connector).get_tools(),
+        ],
         system_prompt="You are a helpful assistant that can perform navigation tasks.",
     )
     manipulator_executor = Executor(
@@ -58,13 +69,22 @@ def test(connector: ROS2Connector):
     graph.get_graph().draw_mermaid_png(output_file_path="megamind_graph2.png")
 
     print("Starting conversation...")
-    for chunk in graph.stream(
-        {"messages": [HumanMultimodalMessage(content="please call basic_executor to get current temperature of robot and then call manipulator robot to list the ros2 topics")]},
-    ):
+    initial_message = get_initial_megamind_state(
+        task="please call basic_executor to get current temperature of robot"
+    )
+    for chunk in graph.stream(initial_message, config={"callbacks": get_tracing_callbacks()}):
+        # print(f"type(chunk): {type(chunk)}")
         print(chunk)
+        print("*" * 100)
+        chunks.append(chunk)
 
-    print("=" * 20)
+    # megamind_response = MegamindResponse.from_dict(chunks[-1])
+    # print("Final Response from MegamindResponse:", megamind_response.final_response)
+    # print("Test completed.")
 
+    response = chunks[-1]
+    final_response = response["megamind"]["messages"][-1].content
+    print(f"Final Response from chunks: {final_response}")
 
 if __name__ == "__main__":
     rclpy.init()

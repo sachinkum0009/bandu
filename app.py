@@ -6,6 +6,7 @@ Date: 2025-08-12
 """
 
 import chainlit as cl
+from rai import get_llm_model, get_tracing_callbacks
 from agents.basic_agent import create_agent
 import rclpy
 from rai.communication.ros2 import (
@@ -17,6 +18,18 @@ from rai.communication.ros2 import (
 
 from agents import AgentType, make_team, create_agent_node, State
 from agents.response import ChunkData
+
+from rai.agents.langchain.core.megamind import (
+    MegamindState,
+    create_megamind,
+    Executor,
+    get_initial_megamind_state,
+)
+from langchain_core.tools import BaseTool
+
+from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
+from rai.tools.ros2 import ROS2Toolkit
+from typing import List
 
 history = []
 
@@ -39,6 +52,43 @@ perception = create_agent_node("perception", AgentType.PERCEPTION, connector)
 builder = make_team([basic, navigator, manipulator, perception])
 
 graph = builder.compile()
+
+graph.get_graph().draw_mermaid_png(output_file_path="team_graph43.png")
+
+# tools: List[BaseTool] = [
+#     GetRobotTemperatureTool(connector=connector),
+#     TellMeAJokeTool(connector=connector),
+# ]
+# llm = get_llm_model(model_type="simple_model", streaming=True)
+# basic_executor = Executor(
+#     name="basic_executor",
+#     llm=llm,
+#     tools=tools,
+#     system_prompt="You are a helpful assistant that has tools like get_robot_temperature to get the current temperature of the robot.",
+# )
+# navigation_executor = Executor(
+#     name="navigation_executor",
+#     llm=llm,
+#     tools=[
+#         *ROS2Toolkit(connector=connector).get_tools(),
+#     ],
+#     system_prompt="You are a helpful ros2 assistant that has the capability to call tools to list ros2 topics and service which can be used to list the ros2 topics and also publish them.",
+# )
+# manipulator_executor = Executor(
+#     name="manipulator_executor",
+#     llm=llm,
+#     tools=tools,
+#     system_prompt="You are a helpful assistant that can perform manipulation tasks.",
+# )
+
+# llm = get_llm_model(model_type="complex_model", streaming=True)
+# graph = create_megamind(
+#     megamind_llm=llm,
+#     megamind_system_prompt=" You are Megamind, a master coordinator of multiple specialized agents. Your job is to delegate tasks to the appropriate agents based on their expertise and capabilities. You must analyze the user's requests, determine which agent is best suited to handle each part of the request, and coordinate the execution of these tasks to provide a comprehensive response back to the user. Always consider the strengths and limitations of each agent when making your decisions. ",
+#     executors=[basic_executor, navigation_executor, manipulator_executor],
+#     task_planning_prompt="Write a detailed plan to complete the task",
+# )
+# graph.get_graph().draw_mermaid_png(output_file_path="megamind_graph2.png")
 
 @cl.set_starters
 async def set_starters(user=None):
@@ -70,26 +120,32 @@ async def on_chat_start():
 
 @cl.on_message
 async def on_message(message: cl.Message):
+    print(f"Received message: {message.content}")
     image = cl.Image(name="robot", path="/media/asus/backup/zzzzz/ros2/rtw_workspaces/rolling_generic_ws/src/bandu/agents/nodes/apple-table.jpg")
     msg = cl.Message(content="", author="Agent")
     full_content = ""
     history.append(message.content)
     tool_name = None
-    for chunk in graph.stream({"messages": history}):
+    initial_message = get_initial_megamind_state(
+        task=message.content
+    )
+    chunks = []
+    for chunk in graph.stream({"messages": [message.content]}, config={"callbacks": get_tracing_callbacks()}):
         print(f"Chunk: {chunk}")
-        if "supervisor" in chunk:
-            continue
+        # if "supervisor" in chunk:
+        #     continue
 
-        chunk_data = ChunkData.from_dict(chunk)
-        last_ai_message = chunk_data.get_last_ai_message()
+        # chunk_data = ChunkData.from_dict(chunk)
+        # last_ai_message = chunk_data.get_last_ai_message()
         
-        if last_ai_message:
-            print(f"last ai message: {last_ai_message}")
-            # Stream the AI message content to the user
-            await msg.stream_token(last_ai_message)
-            full_content += last_ai_message
+        # if last_ai_message:
+        #     print(f"last ai message: {last_ai_message}")
+        #     # Stream the AI message content to the user
+        #     await msg.stream_token(last_ai_message)
+        #     full_content += last_ai_message
 
-        print("-----")
+        # print("-----")
+        chunks.append(chunk)
         # # Print tool name and ToolMessage content if tools are used
         # if "tools" in chunk and "messages" in chunk["tools"]:
         #     for m in chunk["tools"]["messages"]:
@@ -133,4 +189,11 @@ async def on_message(message: cl.Message):
         # Continue processing other chunks as needed
         # if "thinker" not in chunk:
         #     continue
+    print("out of for loop")
+    response = chunks[-2]
+    print(response)
+    key, value = next(iter(response.items()))
+    final_response = value["messages"][-1].content
+    print(f"Final Response from chunks: {final_response}")
+    await msg.stream_token(final_response)
     await msg.update()

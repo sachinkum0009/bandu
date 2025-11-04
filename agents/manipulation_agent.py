@@ -38,7 +38,7 @@ from rai_whoami.models import EmbodimentInfo
 import rclpy
 from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 from rai.tools.ros2.simple import GetROS2ImageConfiguredTool
-from rai_open_set_vision.tools import GetGrabbingPointTool
+# from rai_open_set_vision.tools import GetGrabbingPointTool
 
 def create_agent(connector: ROS2Connector):
     """
@@ -46,15 +46,15 @@ def create_agent(connector: ROS2Connector):
     """
     tools: List[BaseROS2Tool] = [
         MoveToPointTool(connector=connector, manipulator_frame="base_link"),
-        GetObjectPositionsTool(
-            connector=connector,
-            target_frame="panda_link0",
-            source_frame="camera_link",
-            camera_topic="/image_raw",
-            depth_topic="/depth_image_raw",
-            camera_info_topic="/color_camera_info",
-            get_grabbing_point_tool=GetGrabbingPointTool(connector=connector),
-        ),
+        # GetObjectPositionsTool(
+        #     connector=connector,
+        #     target_frame="panda_link0",
+        #     source_frame="camera_link",
+        #     camera_topic="/image_raw",
+        #     depth_topic="/depth_image_raw",
+        #     camera_info_topic="/color_camera_info",
+        #     get_grabbing_point_tool=GetGrabbingPointTool(connector=connector),
+        # ),
         MoveObjectFromToTool(connector=connector, manipulator_frame="panda_link0"),
         ResetArmTool(connector=connector, manipulator_frame="panda_link0"),
         GetROS2ImageConfiguredTool(connector=connector, topic="/image_raw"),

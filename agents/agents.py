@@ -65,8 +65,8 @@ def make_supervisor_node(llm: BaseChatModel, members: list[str]) -> Callable[[St
         "You are a supervisor tasked with help the user by selecting appropriate agent which will be used to answer the user query in a conversation"
         f" use these workers: {members}. to get the answer and then reply with FINISH."
         "Basic agent can be used to get temperature of robot, tell jokes and also use ros2 tools for publishing and subscribing to topics, calling services and actions."
-        "Navigation agent can be used to navigate the robot to a location."
-        "Manipulation agent can be used to control the robot's arms and grippers."
+        "Navigator agent can be used to navigate the robot to a location."
+        "Manipulator agent can be used to control the robot's arms and grippers."
         "Perception agent can be used to get images from the robot's camera."
         "Summarize the response from the workers and provide a final answer."
         # " respond with the worker to act next. If the task is complete and end the conversation"
@@ -109,13 +109,13 @@ def make_team(members: List[Tuple[str, CompiledStateGraph]]):
     sub_agents = [member[0] for member in members]
     supervisor_node = make_supervisor_node(llm, sub_agents)
 
-    summarizer_node = make_summarizer_node(llm)
+    # summarizer_node = make_summarizer_node(llm)
     
     graph = StateGraph(State)
     graph.add_node("supervisor", supervisor_node)
     
     for member in members:
-        print(f"Adding member: {member[0]}")
+        print(f"Adding agent: {member[0]}")
         graph.add_node(member[0], member[1])
     
     graph.add_edge(START, "supervisor")

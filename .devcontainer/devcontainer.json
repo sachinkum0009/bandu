@@ -1,0 +1,13 @@
+{
+  "name": "ROS2 Jazzy Development",
+  "image": "ros:jazzy",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+      }
+    }
+}

@@ -1,13 +1,41 @@
 {
-  "name": "ROS2 Jazzy Development",
-  "image": "ros:jazzy",
-
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
-      ]
-      }
-    }
+    "name": "Bandu Dev Container",
+    "build": {
+        "dockerfile": "../docker/Dockerfile",
+        "context": ".."
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.vscode-python-envs",
+                "ranch-hand-robotics.rde-pack",
+                "ranch-hand-robotics.rde-ros-2",
+                "streetsidesoftware.code-spell-checker",
+                "visualstudioexptteam.vscodeintellicode"
+            ],
+            "settings": {
+                "remote.autoForwardPorts": false,
+                "remote.restoreForwardedPorts": false
+            }
+        }
+    },
+    "runArgs": [
+        "--network=host"
+    ],
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "ROS_AUTOMATIC_DISCOVERY_RANGE": "SUBNET",
+        "ROS_DOMAIN_ID": "0",
+        "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp"
+    },
+    // "remoteUser": "vscode",
+    "forwardPorts": [],
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "postCreateCommand": "echo 'Dev container ready!'"
 }

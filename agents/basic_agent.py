@@ -29,21 +29,18 @@ from rai.messages.multimodal import SystemMultimodalMessage, AIMessage, HumanMul
 from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
 import rclpy
+
+from agents.mcp_adapter import get_mcp_adapter_tools
 from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
-def create_agent(connector: ROS2Connector):
-    # rclpy.init()
-    # connector = ROS2Connector(executor_type="single_threaded")
-
-    # node = connector.node
-    # node.declare_parameter("conversion_ratio", 1.0)
-
+async def create_agent(connector: ROS2Connector):
     tools: List[BaseTool] = [
         GetRobotTemperatureTool(connector=connector),
         TellMeAJokeTool(connector=connector),
         *ROS2Toolkit(connector=connector).get_tools(),
         GetROS2ImageTool(connector=connector),
     ]
+    mcp_tools = await get_mcp_adapter_tools()
 
     llm = get_llm_model(model_type="complex_model", streaming=True)
     embodiment_info = EmbodimentInfo.from_file(
@@ -51,12 +48,7 @@ def create_agent(connector: ROS2Connector):
     )
     agent = create_conversational_agent(
         llm=llm,
-        tools=tools,
+        tools=tools+mcp_tools, # add ros2 tools and mcp tools
         system_prompt=embodiment_info.to_langchain(),
     )
-    # agent = create_react_runnable(
-    #     llm=llm,
-    #     tools=tools,
-    #     system_prompt=embodiment_info.to_langchain(),
-    # )
     return agent

@@ -288,7 +288,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "chainlit" },
-    { name = "langchain-mcp-adapters" },
+    { name = "langchain-core" },
     { name = "rai-core" },
     { name = "rai-whoami" },
 ]
@@ -296,7 +296,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "chainlit", specifier = ">=2.9.6" },
-    { name = "langchain-mcp-adapters", specifier = ">=0.2.0" },
+    { name = "langchain-core", specifier = ">=0.3.83" },
     { name = "rai-core", specifier = ">=2.6.0" },
     { name = "rai-whoami", specifier = ">=0.0.5" },
 ]
@@ -1279,20 +1279,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/21/a4/24f2d787bfcf56e5990924cacefe6f6e7971a3629f97c8162fc7a2a3d851/langchain_core-0.3.83.tar.gz", hash = "sha256:a0a4c7b6ea1c446d3b432116f405dc2afa1fe7891c44140d3d5acca221909415", size = 597965, upload-time = "2026-01-13T01:19:23.854Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/db/d71b80d3bd6193812485acea4001cdf86cf95a44bbf942f7a240120ff762/langchain_core-0.3.83-py3-none-any.whl", hash = "sha256:8c92506f8b53fc1958b1c07447f58c5783eb8833dd3cb6dc75607c80891ab1ae", size = 458890, upload-time = "2026-01-13T01:19:21.748Z" },
-]
-
-[[package]]
-name = "langchain-mcp-adapters"
-version = "0.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "langchain-core" },
-    { name = "mcp" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7a/ad/4c73093ac8848bd188d6d2bdf4817eee54ef103082b857b144877e729ed5/langchain_mcp_adapters-0.2.0.tar.gz", hash = "sha256:9a878f7e2fe2c3a8a33e3eda41a7d46e899470f5f5e6a5c9f8a79e409c487236", size = 36435, upload-time = "2025-12-09T12:57:55.828Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/65/b5d2cec4b91541c2503148e0e4cd45b54cd45dcd3560502e9a57eec40d71/langchain_mcp_adapters-0.2.0-py3-none-any.whl", hash = "sha256:88768f31acfaa857b9e6fd50e50fcd5aea8bd85f75eaa17451b346d46feb7ce9", size = 22711, upload-time = "2025-12-09T12:57:55.005Z" },
 ]
 
 [[package]]

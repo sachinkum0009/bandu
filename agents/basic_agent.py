@@ -30,7 +30,7 @@ from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
 import rclpy
 
-from agents.mcp_adapter import get_mcp_adapter_tools
+#from agents.mcp_adapter import get_mcp_adapter_tools
 from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
 async def create_agent(connector: ROS2Connector):
@@ -40,7 +40,7 @@ async def create_agent(connector: ROS2Connector):
         *ROS2Toolkit(connector=connector).get_tools(),
         GetROS2ImageTool(connector=connector),
     ]
-    mcp_tools = await get_mcp_adapter_tools()
+    #mcp_tools = await get_mcp_adapter_tools()
 
     llm = get_llm_model(model_type="complex_model", streaming=True)
     embodiment_info = EmbodimentInfo.from_file(
@@ -48,7 +48,7 @@ async def create_agent(connector: ROS2Connector):
     )
     agent = create_conversational_agent(
         llm=llm,
-        tools=tools+mcp_tools, # add ros2 tools and mcp tools
+        tools=tools, #+mcp_tools, # add ros2 tools and mcp tools
         system_prompt=embodiment_info.to_langchain(),
     )
     return agent

@@ -19,12 +19,6 @@ from .tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
 
 def create_agent(connector: ROS2Connector):
-    # rclpy.init()
-    # connector = ROS2Connector(executor_type="single_threaded")
-
-    # node = connector.node
-    # node.declare_parameter("conversion_ratio", 1.0)
-
     tools: List[BaseTool] = [
         GetRobotTemperatureTool(connector=connector),
         TellMeAJokeTool(connector=connector),
@@ -39,9 +33,4 @@ def create_agent(connector: ROS2Connector):
         tools=tools,
         system_prompt=embodiment_info.to_langchain(),
     )
-    # agent = create_react_runnable(
-    #     llm=llm,
-    #     tools=tools,
-    #     system_prompt=embodiment_info.to_langchain(),
-    # )
     return agent

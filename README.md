@@ -1,8 +1,8 @@
 # bandu
 Bandu: AI Agents based on ROS2
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI Status](https://github.com/sachinkum0009/bandu/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sachinkum0009/bandu/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sachinkum0009/bandu/blob/main/LICENSE)
+[![Docs Status](https://github.com/sachinkum0009/bandu/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/sachinkum0009/bandu/actions)
 
 ## Overview
 

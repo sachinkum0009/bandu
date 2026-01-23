@@ -1,4 +1,4 @@
-# Configure LLMs 
+# Configure LLMs
 
 RAI provides a python script which can be used to configure different LLMs from various vendors like OpenAI, or Ollama, etc.
 

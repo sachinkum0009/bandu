@@ -6,13 +6,10 @@ date: 2025-09-07
 """
 
 from enum import Enum
-from typing import List, Optional, Literal, TypedDict, Tuple, Callable
+from typing import List, Literal, TypedDict, Tuple, Callable
 from rai import get_llm_model
 from rai.communication.ros2 import (
     ROS2Connector,
-    ROS2HRIConnector,
-    ROS2HRIMessage,
-    ROS2Message,
 )
 
 from langgraph.types import Command
@@ -21,8 +18,13 @@ from langgraph.graph.state import CompiledStateGraph
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, trim_messages
 
+import asyncio
+import inspect
+
+
 class State(MessagesState):
     next: str
+
 
 class AgentType(str, Enum):
     BASIC = "basic"
@@ -34,12 +36,15 @@ class AgentType(str, Enum):
     PERCEPTION = "perception"
     MANIPULATION = "manipulation"
 
-def make_summarizer_node(llm: BaseChatModel) -> Callable[[State], Command[Literal["supervisor"]]]:
+
+def make_summarizer_node(
+    llm: BaseChatModel,
+) -> Callable[[State], Command[Literal["supervisor"]]]:
     system_prompt = (
         "You are a summarizer tasked with summarizing the conversation between the user and multiple agents."
         " Summarize the conversation in a concise manner."
     )
-    
+
     def summarizer_node(state: State) -> Command[Literal["supervisor"]]:
         """An LLM-based summarizer."""
         messages = [
@@ -49,17 +54,17 @@ def make_summarizer_node(llm: BaseChatModel) -> Callable[[State], Command[Litera
         response = llm.invoke(trimmed_messages)
         return Command(
             update={
-                "messages": [
-                    HumanMessage(content=response.content, name="summarizer")
-                ]
+                "messages": [HumanMessage(content=response.content, name="summarizer")]
             },
             goto="supervisor",
         )
-    
+
     return summarizer_node
 
 
-def make_supervisor_node(llm: BaseChatModel, members: list[str]) -> Callable[[State], Command]:
+def make_supervisor_node(
+    llm: BaseChatModel, members: list[str]
+) -> Callable[[State], Command]:
     options = ["FINISH"] + members
     system_prompt = (
         "You are a supervisor tasked with help the user by selecting appropriate agent which will be used to answer the user query in a conversation"
@@ -73,25 +78,29 @@ def make_supervisor_node(llm: BaseChatModel, members: list[str]) -> Callable[[St
         # " task and respond with their results and status. When finished,"
         # " respond with FINISH."
     )
-    
+
     class Router(TypedDict):
         """Worker to route to next. If no workers needed, route to FINISH."""
-        next: Literal[*options]
 
-    def supervisor_node(state: State) -> Command[Literal[*members, "__end__"]]:
+        next: Literal[*options]  # type: ignore
+
+    def supervisor_node(state: State) -> Command[Literal[*members, "__end__"]]:  # type: ignore
         """An LLM-based router."""
         messages = [
             {"role": "system", "content": system_prompt},
         ] + state["messages"]
         response = llm.with_structured_output(Router).invoke(messages)
-        goto = response["next"]
+        goto = response["next"]  # type: ignore
         if goto == "FINISH":
             goto = END
         return Command(goto=goto, update={"next": goto})
-    
+
     return supervisor_node
 
-def create_node(state: State, agent: CompiledStateGraph, agent_name: str) -> Command[Literal["supervisor"]]:
+
+def create_node(
+    state: State, agent: CompiledStateGraph, agent_name: str
+) -> Command[Literal["supervisor"]]:
     """Create a node function that invokes an agent and returns to supervisor."""
     result = agent.invoke(state)
     return Command(
@@ -104,73 +113,103 @@ def create_node(state: State, agent: CompiledStateGraph, agent_name: str) -> Com
         goto="supervisor",
     )
 
+
 def make_team(members: List[Tuple[str, CompiledStateGraph]]):
     llm = get_llm_model(model_type="complex_model", streaming=True)
     sub_agents = [member[0] for member in members]
     supervisor_node = make_supervisor_node(llm, sub_agents)
 
     # summarizer_node = make_summarizer_node(llm)
-    
+
     graph = StateGraph(State)
-    graph.add_node("supervisor", supervisor_node)
-    
+    graph.add_node("supervisor", supervisor_node)  # type: ignore
+
     for member in members:
         print(f"Adding agent: {member[0]}")
         graph.add_node(member[0], member[1])
-    
+
     graph.add_edge(START, "supervisor")
     return graph
 
-def create_agent_node(name: str, agent_type: AgentType, connector: ROS2Connector) -> Tuple[str, callable]:
+
+def _resolve_agent(agent):
+    """Resolve agent if factory returned a coroutine; otherwise return it unchanged."""
+    if inspect.iscoroutine(agent):
+        try:
+            return asyncio.run(agent)
+        except RuntimeError as e:
+            # If we're already inside a running event loop, provide a clear error.
+            raise RuntimeError(
+                "create_agent returned a coroutine but cannot be awaited here; "
+                "call create_agent_node from an async context or make the factory synchronous"
+            ) from e
+    return agent
+
+
+def create_agent_node(
+    name: str, agent_type: AgentType, connector: ROS2Connector
+) -> Tuple[str, Callable]:
     """Create an agent and return a tuple of (name, agent)."""
     if agent_type == AgentType.BASIC:
-        from agents.basic_agent import create_agent as create_basic_agent
+        from .basic_agent import create_agent as create_basic_agent
+
         agent = create_basic_agent(connector)
-        
+        agent = _resolve_agent(agent)
+
         def node(state: State) -> Command[Literal["supervisor"]]:
             return create_node(state, agent, name)
-        
+
         return (name, node)
         # return (name, agent)
     elif agent_type == AgentType.INFLUENCER:
-        from agents.influencer_agent import create_agent as create_influencer_agent
+        from .influencer_agent import create_agent as create_influencer_agent
+
         agent = create_influencer_agent(connector)
+        agent = _resolve_agent(agent)
 
         def node(state: State) -> Command[Literal["supervisor"]]:
             return create_node(state, agent, name)
-        
+
         return (name, node)
-        
+
         # def node(state: State) -> Command[Literal["supervisor"]]:
         #     return create_node(state, agent, name)
-        
+
         # return (name, node)
         # return (name, agent)
     elif agent_type == AgentType.NAVIGATION:
-        from agents.navigation_agent import create_agent as create_navigation_agent
+        from .navigation_agent import create_agent as create_navigation_agent
+
         agent = create_navigation_agent(connector)
+        agent = _resolve_agent(agent)
+
         def node(state: State) -> Command[Literal["supervisor"]]:
             return create_node(state, agent, name)
-        
+
         return (name, node)
-        
+
         # return (name, agent)
-    
+
     elif agent_type == AgentType.MANIPULATION:
-        from agents.manipulation_agent import create_agent as create_manipulation_agent
+        from .manipulation_agent import create_agent as create_manipulation_agent
+
         agent = create_manipulation_agent(connector)
+        agent = _resolve_agent(agent)
 
         def node(state: State) -> Command[Literal["supervisor"]]:
             return create_node(state, agent, name)
 
         return (name, node)
-    
+
     elif agent_type == AgentType.PERCEPTION:
-        from agents.perception_agent import create_agent as create_perception_agent
+        from .perception_agent import create_agent as create_perception_agent
+
         agent = create_perception_agent(connector)
+        agent = _resolve_agent(agent)
+
         def node(state: State) -> Command[Literal["supervisor"]]:
             return create_node(state, agent, name)
-        
+
         return (name, node)
         # return (name, agent)
 

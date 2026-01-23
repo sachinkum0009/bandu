@@ -1,6 +1,9 @@
 # bandu
 Bandu: AI Agents based on ROS2
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sachinkum0009/bandu/blob/main/LICENSE)
+[![Docs Status](https://github.com/sachinkum0009/bandu/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/sachinkum0009/bandu/actions)
+
 ## Overview
 
 It is a multi agent based application where each agent has different capabilities and tools to interact with the robot using ROS2 communication. The agents can be used to perform various tasks such as driving the robot, getting the temperature of the robot, telling jokes, etc.
@@ -22,11 +25,14 @@ It is a multi agent based application where each agent has different capabilitie
 ## Installation steps
 
 ```bash
-# create a virtual env and install deps
-pip install -r requirements.txt
+# use uv to install deps
+uv sync
+
+# source ros
+source /opt/ros/jazzy/setup.bash # change jazzy with your ros distro
 
 # start app
-chainlit run app.py --host 0.0.0.0
+uv run chainlit run scripts/app.py --host 0.0.0.0
 ```
 
 

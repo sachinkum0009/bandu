@@ -19,7 +19,7 @@ base_url = "https://api.openai.com/v1/"
 base_url = "http://10.147.19.232:11434"
 simple_model = "qwen3"
 complex_model = "qwen3"
-embeddings_model = "llama3.2"
+embeddings_model = "qwen3-embedding:0.6b"
 
 [tracing]
 project = "rai"

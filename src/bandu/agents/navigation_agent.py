@@ -16,6 +16,8 @@ from rai.communication.ros2 import (
 from rai.tools.ros2 import Nav2Toolkit
 from rai_whoami.models import EmbodimentInfo
 
+from bandu.rag.locations import GetLocationTool
+
 
 def create_agent(connector: ROS2Connector):
     """
@@ -23,6 +25,7 @@ def create_agent(connector: ROS2Connector):
     """
     tools: List[BaseTool] = [
         *Nav2Toolkit(connector=connector).get_tools(),
+        GetLocationTool(),
     ]
 
     llm = get_llm_model(model_type="complex_model", streaming=True)
@@ -32,9 +35,4 @@ def create_agent(connector: ROS2Connector):
         tools=tools,
         system_prompt=embodiment_info.to_langchain(),
     )
-    # agent = create_react_runnable(
-    #     llm=llm,
-    #     tools=tools,
-    #     system_prompt=embodiment_info.to_langchain(),
-    # )
     return agent

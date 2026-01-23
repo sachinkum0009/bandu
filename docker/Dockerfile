@@ -1,24 +1,35 @@
-FROM ros:rolling-ros-base
+ARG ROS_DISTRO=jazzy
 
-WORKDIR /app
+FROM osrf/ros:${ROS_DISTRO}-desktop-full
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && apt install ros-rolling-cv-bridge -y
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    git \
+    wget \
+    sudo \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    ros-${ROS_DISTRO}-nav2-msgs \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-pip python3-venv build-essential ca-certificates libffi-dev libssl-dev \
-    libgl1 libglib2.0-0 libsm6 libxrender1 libxext6 ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m venv /opt/venv
+WORKDIR /workspace
+
+# Create virtual environment as root
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip setuptools wheel
+
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY src/bandu /app
+# Copy requirements and install packages
+COPY requirements.txt /tmp/requirements.txt
+RUN /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
-COPY install  /tmp
+# EXPOSE 8000
 
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
-
-EXPOSE 8000
-
-ENTRYPOINT ["/bin/bash", "-lc", "source /opt/ros/rolling/setup.bash && source /tmp/setup.bash && exec bash start_app.sh"]
+# Source ROS on shell startup
+RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc

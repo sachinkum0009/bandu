@@ -5,3 +5,4 @@ grandalf
 mkdocstrings
 mkdocstrings-python
 mkdocs-material
+langchain-mcp-adapters

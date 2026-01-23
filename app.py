@@ -70,42 +70,7 @@ builder = make_team([basic, navigator, manipulator, perception])
 
 graph = builder.compile()
 
-graph.get_graph().draw_mermaid_png(output_file_path="team_graph43.png")
-
-# tools: List[BaseTool] = [
-#     GetRobotTemperatureTool(connector=connector),
-#     TellMeAJokeTool(connector=connector),
-# ]
-# llm = get_llm_model(model_type="simple_model", streaming=True)
-# basic_executor = Executor(
-#     name="basic_executor",
-#     llm=llm,
-#     tools=tools,
-#     system_prompt="You are a helpful assistant that has tools like get_robot_temperature to get the current temperature of the robot.",
-# )
-# navigation_executor = Executor(
-#     name="navigation_executor",
-#     llm=llm,
-#     tools=[
-#         *ROS2Toolkit(connector=connector).get_tools(),
-#     ],
-#     system_prompt="You are a helpful ros2 assistant that has the capability to call tools to list ros2 topics and service which can be used to list the ros2 topics and also publish them.",
-# )
-# manipulator_executor = Executor(
-#     name="manipulator_executor",
-#     llm=llm,
-#     tools=tools,
-#     system_prompt="You are a helpful assistant that can perform manipulation tasks.",
-# )
-
-# llm = get_llm_model(model_type="complex_model", streaming=True)
-# graph = create_megamind(
-#     megamind_llm=llm,
-#     megamind_system_prompt=" You are Megamind, a master coordinator of multiple specialized agents. Your job is to delegate tasks to the appropriate agents based on their expertise and capabilities. You must analyze the user's requests, determine which agent is best suited to handle each part of the request, and coordinate the execution of these tasks to provide a comprehensive response back to the user. Always consider the strengths and limitations of each agent when making your decisions. ",
-#     executors=[basic_executor, navigation_executor, manipulator_executor],
-#     task_planning_prompt="Write a detailed plan to complete the task",
-# )
-# graph.get_graph().draw_mermaid_png(output_file_path="megamind_graph2.png")
+# graph.get_graph().draw_mermaid_png(output_file_path="team_graph43.png")
 
 ## summarizer
 summarizer_llm = get_llm_model(model_type="simple_model", streaming=True)
@@ -275,50 +240,6 @@ async def on_message(message: cl.Message):
             
             summarizer_step.output = summary_content
         
-        # # Print tool name and ToolMessage content if tools are used
-        # if "tools" in chunk and "messages" in chunk["tools"]:
-        #     for m in chunk["tools"]["messages"]:
-        #         # If message has 'tool_calls' (AIMessage)
-        #         if hasattr(m, 'tool_calls'):
-        #             for tool_call in m.tool_calls:
-        #                 print(tool_call.get('name', None))
-        #         # If message has 'name' (ToolMessage)
-        #         elif hasattr(m, 'name'):
-        #             tool_name = getattr(m, 'name', None)
-        #             content = getattr(m, 'content', None)
-        #             print(tool_name)
-        #             # print(content)
-        #         # If message is a dict
-        #         elif isinstance(m, dict):
-        #             if 'tool_calls' in m:
-        #                 for tool_call in m['tool_calls']:
-        #                     print(tool_call.get('name', None))
-        #             elif 'name' in m:
-        #                 print(m['name'])
-        #                 if 'content' in m:
-        #                     print(m['content'])
-        #     if tool_name == "get_robot_temperature":
-        #         print("Get robot temperature tool is used")
-        #     elif tool_name == "get_ros2_image":
-        #         print("get image tool is used")
-        #         # decode content to base64 image and save as tmp image
-        #         import base64, tempfile
-        #         if content: # type: ignore
-        #             img_bytes = base64.b64decode(content)
-        #             with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_img:
-        #                 tmp_img.write(img_bytes)
-        #                 tmp_img_path = tmp_img.name
-        #             print(f"Image saved to {tmp_img_path}")
-        #             img = cl.Image(name="robot", path=tmp_img_path) # type: ignore
-        #             msg = cl.Message(content="", author="Agent", elements=[img])
-        #             await msg.stream_token("")
-        #             # return
-        #     else:
-        #         print(f"tool name is {tool_name}")
-        # Continue processing other chunks as needed
-        # if "thinker" not in chunk:
-        #     continue
-    
     print(f"Final summarized response: {msg.content}")
     print("-"*100)
     await msg.update()

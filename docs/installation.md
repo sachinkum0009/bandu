@@ -7,15 +7,14 @@ The installation steps for the Bandu application are straightforward. Follow the
 ## Prerequisites
 
 ```bash
-# create a virtual env
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+# use uv to install deps
+uv sync
 
-# install dependencies
-pip install -r requirements.txt
+# source ros
+source /opt/ros/jazzy/setup.bash # change jazzy with your ros distro
 
-# run the application
-chainlit run app.py
+# start app
+uv run chainlit run scripts/app.py --host 0.0.0.0
 ```
 
 It will start the localhost server at 8000 port. Then you can access the application at `http://localhost:8000` in your web browser.

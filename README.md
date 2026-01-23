@@ -25,11 +25,14 @@ It is a multi agent based application where each agent has different capabilitie
 ## Installation steps
 
 ```bash
-# create a virtual env and install deps
-pip install -r requirements.txt
+# use uv to install deps
+uv sync
+
+# source ros
+source /opt/ros/jazzy/setup.bash # change jazzy with your ros distro
 
 # start app
-chainlit run app.py --host 0.0.0.0
+uv run chainlit run scripts/app.py --host 0.0.0.0
 ```
 
 

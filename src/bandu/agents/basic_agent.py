@@ -17,7 +17,7 @@ from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
 
 # from agents.mcp_adapter import get_mcp_adapter_tools
-from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
+from .tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
 
 async def create_agent(connector: ROS2Connector):

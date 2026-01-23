@@ -15,7 +15,7 @@ from rai.communication.ros2 import (
 )
 from rai.tools.ros2 import ROS2Toolkit
 from rai_whoami.models import EmbodimentInfo
-from agents.tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
+from .tools import GetRobotTemperatureTool, TellMeAJokeTool, GetROS2ImageTool
 
 
 def create_agent(connector: ROS2Connector):

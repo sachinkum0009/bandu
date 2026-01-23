@@ -151,7 +151,7 @@ def create_agent_node(
 ) -> Tuple[str, Callable]:
     """Create an agent and return a tuple of (name, agent)."""
     if agent_type == AgentType.BASIC:
-        from agents.basic_agent import create_agent as create_basic_agent
+        from .basic_agent import create_agent as create_basic_agent
 
         agent = create_basic_agent(connector)
         agent = _resolve_agent(agent)
@@ -162,7 +162,7 @@ def create_agent_node(
         return (name, node)
         # return (name, agent)
     elif agent_type == AgentType.INFLUENCER:
-        from agents.influencer_agent import create_agent as create_influencer_agent
+        from .influencer_agent import create_agent as create_influencer_agent
 
         agent = create_influencer_agent(connector)
         agent = _resolve_agent(agent)
@@ -178,7 +178,7 @@ def create_agent_node(
         # return (name, node)
         # return (name, agent)
     elif agent_type == AgentType.NAVIGATION:
-        from agents.navigation_agent import create_agent as create_navigation_agent
+        from .navigation_agent import create_agent as create_navigation_agent
 
         agent = create_navigation_agent(connector)
         agent = _resolve_agent(agent)
@@ -191,7 +191,7 @@ def create_agent_node(
         # return (name, agent)
 
     elif agent_type == AgentType.MANIPULATION:
-        from agents.manipulation_agent import create_agent as create_manipulation_agent
+        from .manipulation_agent import create_agent as create_manipulation_agent
 
         agent = create_manipulation_agent(connector)
         agent = _resolve_agent(agent)
@@ -202,7 +202,7 @@ def create_agent_node(
         return (name, node)
 
     elif agent_type == AgentType.PERCEPTION:
-        from agents.perception_agent import create_agent as create_perception_agent
+        from .perception_agent import create_agent as create_perception_agent
 
         agent = create_perception_agent(connector)
         agent = _resolve_agent(agent)

@@ -92,7 +92,7 @@ async def _query_navigation_agent(agent_url: str, query: str) -> str:
         resolver = A2ACardResolver(client, agent_url)
         try:
             agent_card = await resolver.get_agent_card()
-            logger.info(f"Connected to agent at{agent_url}")
+            logger.info(f"Connected to agent at {agent_url}")
         except Exception as e:
             logger.error(f"Failed to fetch agent card from {agent_url}: {e}")
             return f"Error: Could not connect to agent at {agent_url}"

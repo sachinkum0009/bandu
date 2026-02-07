@@ -30,7 +30,7 @@ from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 
-from agent_executor import ManipulatorAgentExecutor
+from .agent_executor import ManipulatorAgentExecutor
 
 from bandu.a2a_agents.skills import Skill, get_skill
 from bandu.a2a_agents.cards import get_agent_card, Card

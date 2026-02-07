@@ -6,7 +6,7 @@ date: 2025-09-07
 """
 
 from enum import Enum
-from typing import List, Literal, TypedDict, Tuple, Callable
+from typing import Literal, TypedDict, Callable
 from rai import get_llm_model
 from rai.communication.ros2 import (
     ROS2Connector,
@@ -114,7 +114,7 @@ def create_node(
     )
 
 
-def make_team(members: List[Tuple[str, CompiledStateGraph]]):
+def make_team(members: list[tuple[str, CompiledStateGraph]]):
     llm = get_llm_model(model_type="complex_model", streaming=True)
     sub_agents = [member[0] for member in members]
     supervisor_node = make_supervisor_node(llm, sub_agents)
@@ -148,7 +148,7 @@ def _resolve_agent(agent):
 
 def create_agent_node(
     name: str, agent_type: AgentType, connector: ROS2Connector
-) -> Tuple[str, Callable]:
+) -> tuple[str, Callable]:
     """Create an agent and return a tuple of (name, agent)."""
     if agent_type == AgentType.BASIC:
         from .basic_agent import create_agent as create_basic_agent

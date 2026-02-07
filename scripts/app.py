@@ -8,33 +8,19 @@ Date: 2025-08-12
 import rclpy
 
 import chainlit as cl
-from typing import List, Dict, Any
-from langchain_core.callbacks import BaseCallbackHandler
-
+import logging
 from rai import get_llm_model, get_tracing_callbacks
 from rai.communication.ros2 import ROS2Connector
+from typing import List
 
 
 from bandu.agents import AgentType, make_team, create_agent_node
+from bandu.app import ToolTrackingCallback
 
+ENABLE_AUTH = False
 
-# Custom callback to track tool usage
-class ToolTrackingCallback(BaseCallbackHandler):
-    def __init__(self):
-        self.tool_calls = []
-        self.tool_results = []
-
-    def on_tool_start(
-        self, serialized: Dict[str, Any], input_str: str, **kwargs
-    ) -> None:
-        tool_name = serialized.get("name", "Unknown Tool")
-        self.tool_calls.append({"name": tool_name, "input": input_str})
-        print(f"[ToolTracker] Tool started: {tool_name}")
-
-    def on_tool_end(self, output: str, **kwargs) -> None:
-        self.tool_results.append({"output": output})
-        print(f"[ToolTracker] Tool ended with output: {output}")
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(name="bandu")
 
 history = []
 
@@ -45,38 +31,35 @@ node = connector.node
 node.declare_parameter("conversion_ratio", 1.0)
 
 ## Create the agents
-
 basic = create_agent_node("basic", AgentType.BASIC, connector)
-
 navigator = create_agent_node("navigator", AgentType.NAVIGATION, connector)
-
 manipulator = create_agent_node("manipulator", AgentType.MANIPULATION, connector)
-
 perception = create_agent_node("perception", AgentType.PERCEPTION, connector)
 
 builder = make_team([basic, navigator, manipulator, perception])
 
 graph = builder.compile()
 
-# graph.get_graph().draw_mermaid_png(output_file_path="team_graph43.png")
-
 ## summarizer
 summarizer_llm = get_llm_model(model_type="simple_model", streaming=True)
 
-# @cl.password_auth_callback
-# async def auth_callback(username: str, password: str):
-#     # Fetch the user matching username from your database
-#     # and compare the hashed password with the value stored in the database
-#     if (username, password) == ("admin", "admin"):
-#         return cl.User(
-#             identifier="admin", metadata={"role": "admin", "provider": "credentials"}
-#         )
-#     elif (username, password) == ("sachinkum0009", "123456"):
-#         return cl.User(
-#             identifier="user", metadata={"role": "user", "provider": "credentials"}
-#         )
-#     else:
-#         return None
+if ENABLE_AUTH:
+
+    @cl.password_auth_callback
+    async def auth_callback(username: str, password: str):
+        # Fetch the user matching username from your database
+        # and compare the hashed password with the value stored in the database
+        if (username, password) == ("admin", "admin"):
+            return cl.User(
+                identifier="admin",
+                metadata={"role": "admin", "provider": "credentials"},
+            )
+        elif (username, password) == ("sachinkum0009", "123456"):
+            return cl.User(
+                identifier="user", metadata={"role": "user", "provider": "credentials"}
+            )
+        else:
+            return None
 
 
 @cl.set_starters
@@ -100,19 +83,9 @@ async def set_starters(user=None):
     ]
 
 
-@cl.on_app_startup
-async def on_app_startup():
-    print("Chainlit Starting Up")
-
-
-@cl.on_chat_start
-async def on_chat_start():
-    print("Chainlit Started")
-
-
 @cl.on_message
 async def on_message(message: cl.Message):
-    print(f"Received message: {message.content}")
+    logger.info(f"Received message: {message.content}")
 
     msg = cl.Message(content="", author="Agent")
     await msg.update()
@@ -132,23 +105,9 @@ async def on_message(message: cl.Message):
             {"messages": [message.content]},
             config={"callbacks": [*get_tracing_callbacks(), tool_tracker]},
         ):
-            print(f"Chunk: {chunk}")
-            # if "supervisor" in chunk:
-            #     continue
-
-            # chunk_data = ChunkData.from_dict(chunk)
-            # last_ai_message = chunk_data.get_last_ai_message()
-
-            # if last_ai_message:
-            #     print(f"last ai message: {last_ai_message}")
-            #     # Stream the AI message content to the user
-            #     await msg.stream_token(last_ai_message)
-            #     full_content += last_ai_message
-
-            # print("-----")
+            logger.info(f"Chunk: {chunk}")
             chunks.append(chunk)
             agent_response = next(iter(chunk.items()))[1]  # .get("messages", [""])
-            print(f"Agent Response: {agent_response}")
 
             # Check tool tracker for new tool calls
             if tool_tracker.tool_calls:
@@ -185,7 +144,7 @@ async def on_message(message: cl.Message):
                         for tool_call in msg_item.tool_calls:
                             tool_name = tool_call.get("name", "Unknown Tool")
                             tool_args = tool_call.get("args", {})
-                            print(
+                            logger.info(
                                 f"Found tool call: {tool_name} with args: {tool_args}"
                             )
                             async with cl.Step(
@@ -200,7 +159,7 @@ async def on_message(message: cl.Message):
                     if msg_item.__class__.__name__ == "ToolMessage":
                         tool_name = getattr(msg_item, "name", "Unknown Tool")
                         tool_content = getattr(msg_item, "content", "")
-                        print(f"Found tool result: {tool_name} = {tool_content}")
+                        logger.info(f"Found tool result: {tool_name} = {tool_content}")
                         async with cl.Step(
                             name=f"✓ {tool_name} result", type="tool"
                         ) as tool_step:
@@ -222,7 +181,7 @@ async def on_message(message: cl.Message):
             # Extract content from the agent response
             if "messages" in agent_response and len(agent_response["messages"]) > 0:
                 message_content = agent_response["messages"][-1].content
-                print(f"Message Content: {message_content}")
+                logger.info(f"Message Content: {message_content}")
                 agent_responses.append(message_content)
 
                 # Update the step output with the actual message content if we just created a step

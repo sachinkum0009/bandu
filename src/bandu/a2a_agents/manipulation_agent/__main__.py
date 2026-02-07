@@ -58,10 +58,15 @@ def main():
         node.declare_parameter("conversion_ratio", 1.0)
 
         # Define the agent skill
-        skill = get_skill(Skill.GET_WEATHER)
+        skill_1 = get_skill(Skill.MOVE_TO_POINT)
+        skill_2 = get_skill(Skill.MOVE_OBJECT_FROM_TO)
+        skill_3 = get_skill(Skill.GET_OBJECT_POSITIONS)
+        skill_4 = get_skill(Skill.RESET_ARM)
 
         # Define the agent card
-        agent_card = get_agent_card(Card.WEATHER_AGENT, [skill])
+        agent_card = get_agent_card(
+            Card.MANIPULATION_AGENT, [skill_1, skill_2, skill_3, skill_4]
+        )
 
         # Create request handler with the agent executor
         request_handler = DefaultRequestHandler(

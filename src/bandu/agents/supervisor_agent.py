@@ -49,12 +49,13 @@ MANIPULATION_AGENT_URL = "http://asus-pc.netbird.cloud:9003"
 @tool
 async def query_navigation_agent(query: str) -> str:
     """
-    Query the navigation agent with a natural language command and receive a response.
-
-    :param query: Description
-    :type query: str
-    :return: Description
-    :rtype: str
+    Send a natural-language command to the navigation agent and return its textual response.
+    
+    Parameters:
+        query (str): Natural-language command or question to send to the navigation agent.
+    
+    Returns:
+        str: The navigation agent's response text, or an error message describing a failure to contact or communicate with the agent.
     """
     return await _query_navigation_agent(NAVIGATION_AGENT_URL, query)
 
@@ -62,17 +63,30 @@ async def query_navigation_agent(query: str) -> str:
 @tool
 async def query_manipulation_agent(query: str) -> str:
     """
-    Query the manipulation agent with a natural language command and receive a response.
-
-    :param query: Description
-    :type query: str
-    :return: Description
-    :rtype: str
+    Send a natural-language command to the manipulation agent and return its textual response.
+    
+    Parameters:
+        query (str): Natural language command to send to the manipulation agent.
+    
+    Returns:
+        str: The manipulation agent's response text, or an error message if the request failed.
     """
     return await _query_navigation_agent(MANIPULATION_AGENT_URL, query)
 
 
 async def _query_navigation_agent(agent_url: str, query: str) -> str:
+    """
+    Send a natural-language query to a remote A2A agent and return the agent's response or an error message.
+    
+    This function connects to the agent at agent_url, constructs and sends a user message containing query, and returns the agent's textual response. On failure to retrieve the agent card or to send the message, it returns an error string describing the failure. Note: when a request succeeds but no agent text is extracted yet, the function currently returns a placeholder string.
+    
+    Parameters:
+        agent_url (str): The base URL of the target A2A agent.
+        query (str): The natural-language query to send to the agent.
+    
+    Returns:
+        str: The agent's response text if available, or an error message describing the failure (currently may return a placeholder string when no response content is extracted).
+    """
     async with httpx.AsyncClient() as client:
         # Fetch agent card
         resolver = A2ACardResolver(client, agent_url)
@@ -112,6 +126,14 @@ async def _query_navigation_agent(agent_url: str, query: str) -> str:
 
 
 async def create_agent(connector: ROS2Connector):
+    """
+    Create and return a React-style runnable agent configured for the supervisor embodiment.
+    
+    The agent is initialized with a complex streaming language model, registers the navigation and manipulation query tools, and uses the system prompt derived from the supervisor embodiment JSON.
+    
+    Returns:
+        agent: A runnable React-style agent configured with the LLM, the registered tools, and the embodiment-derived system prompt.
+    """
     llm = get_llm_model(model_type="complex_model", streaming=True)
 
     # Define tools for the navigation agent

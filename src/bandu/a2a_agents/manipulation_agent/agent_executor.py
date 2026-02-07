@@ -24,12 +24,14 @@
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.utils import new_agent_text_message
-from agent import ManipulatorAgent
+from rai.communication.ros2 import ROS2Connector
+
+from bandu.agents import manipulation_agent
 
 
 class ManipulatorAgentExecutor(AgentExecutor):
-    def __init__(self):
-        self.agent = ManipulatorAgent()
+    def __init__(self, connector: ROS2Connector):
+        self.agent = manipulation_agent.create_agent(connector)
 
     async def execute(
         self,
@@ -37,8 +39,8 @@ class ManipulatorAgentExecutor(AgentExecutor):
         event_queue: EventQueue,
     ) -> None:
         user_input = context.get_user_input()
-        weather_response = await self.agent.invoke(user_input)
-        await event_queue.enqueue_event(new_agent_text_message(weather_response))
+        manipulation_response = await self.agent.ainvoke(user_input)
+        await event_queue.enqueue_event(new_agent_text_message(manipulation_response))
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         """Cancel the current operation."""

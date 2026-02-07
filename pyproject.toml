@@ -20,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 start_navigation_agent = "bandu.a2a_agents.navigation_agent.__main__:main"
+start_manipulation_agent = "bandu.a2a_agents.manipulation_agent.__main__:main"
 
 [tool.uv]
 package = true

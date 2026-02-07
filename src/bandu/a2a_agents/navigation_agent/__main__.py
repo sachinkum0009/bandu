@@ -26,7 +26,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-if __name__ == "__main__":
+
+def main():
     ## Initialize ROS2
     rclpy.init()
     connector = None
@@ -78,3 +79,7 @@ if __name__ == "__main__":
             rclpy.shutdown()
 
         logger.info("Shutdown complete.")
+
+
+if __name__ == "__main__":
+    main()

@@ -133,13 +133,16 @@ async def create_agent(connector: ROS2Connector):
     
     Returns:
         agent: A runnable React-style agent configured with the LLM, the registered tools, and the embodiment-derived system prompt.
-    """
+from importlib import resources
+
+async def create_agent(connector: ROS2Connector):
     llm = get_llm_model(model_type="complex_model", streaming=True)
 
     # Define tools for the navigation agent
     tools = [query_manipulation_agent, query_navigation_agent]
 
-    embodiment_info = EmbodimentInfo.from_file("embodiments/supervisor_embodiment.json")
+    embodiment_path = resources.files("bandu").joinpath("embodiments/supervisor_embodiment.json")
+    embodiment_info = EmbodimentInfo.from_file(str(embodiment_path))
 
     agent = create_react_runnable(
         llm=llm,

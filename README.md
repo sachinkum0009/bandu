@@ -36,7 +36,7 @@ source /opt/ros/jazzy/setup.bash # change jazzy with your ros distro
 uv run chainlit run scripts/app.py --host 0.0.0.0
 ```
 
-### Commands to start Manipulation and Navigation Agent
+### Commands to start Manipulation and Navigation Agents
 
 ```bash
 # source ros

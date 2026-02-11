@@ -8,7 +8,11 @@ Date: 2025-08-12
 import rclpy
 
 import chainlit as cl
+from dotenv import load_dotenv
 import logging
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.messages import HumanMessage
+import os
 from rai import get_llm_model, get_tracing_callbacks
 from rai.communication.ros2 import ROS2Connector
 from typing import List
@@ -17,12 +21,11 @@ from typing import List
 from bandu.agents import AgentType, make_team, create_agent_node
 from bandu.app import ToolTrackingCallback
 
-ENABLE_AUTH = False
+load_dotenv()
+ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() == "true"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(name="bandu")
-
-history = []
 
 ## Initialize ROS2
 rclpy.init()
@@ -36,12 +39,14 @@ navigator = create_agent_node("navigator", AgentType.NAVIGATION, connector)
 manipulator = create_agent_node("manipulator", AgentType.MANIPULATION, connector)
 perception = create_agent_node("perception", AgentType.PERCEPTION, connector)
 
-builder = make_team([basic, navigator, manipulator, perception])
+builder = make_team([basic, navigator, manipulator, perception])  # type: ignore
 
-graph = builder.compile()
+checkpointer = InMemorySaver()  # use sqlite in future
+graph = builder.compile(checkpointer=checkpointer)
 
 ## summarizer
 summarizer_llm = get_llm_model(model_type="simple_model", streaming=True)
+
 
 if ENABLE_AUTH:
 
@@ -85,25 +90,34 @@ async def set_starters(user=None):
 
 @cl.on_message
 async def on_message(message: cl.Message):
+    # Get the unique session ID from Chainlit
+    session_id = cl.user_session.get("id")
+    logger.info(f"Session id: {session_id}")
     logger.info(f"Received message: {message.content}")
+    # Create tool tracking callback
+    tool_tracker = ToolTrackingCallback()
+
+    config = {
+        "callbacks": [*get_tracing_callbacks(), tool_tracker],
+        "configurable": {"thread_id": session_id},
+    }
 
     msg = cl.Message(content="", author="Agent")
     await msg.update()
-    history.append(message.content)
+
     tool_name = None
     chunks = []
     agent_responses: List[str] = []
-
-    # Create tool tracking callback
-    tool_tracker = ToolTrackingCallback()
 
     # Create parent supervisor step
     async with cl.Step(name="Supervisor", type="llm") as supervisor_step:
         supervisor_step.input = message.content
 
+        # Stream the graph with just the current user message
+        # The checkpointer will handle conversation history per thread_id
         for chunk in graph.stream(
-            {"messages": [message.content]},
-            config={"callbacks": [*get_tracing_callbacks(), tool_tracker]},
+            {"messages": [HumanMessage(content=message.content)]},
+            config=config,
         ):
             logger.info(f"Chunk: {chunk}")
             chunks.append(chunk)
@@ -194,10 +208,36 @@ async def on_message(message: cl.Message):
 
         supervisor_step.output = f"Coordinated {len(agent_responses)} agent responses"
 
+        # Get conversation history from checkpointer for summarizer context
+        checkpoint_config = {"configurable": {"thread_id": session_id}}
+        checkpoint_state = checkpointer.get(checkpoint_config)
+
+        # Build conversation history context
+        history_context = ""
+        if checkpoint_state and "channel_values" in checkpoint_state:
+            history_messages = checkpoint_state["channel_values"].get("messages", [])
+            if history_messages:
+                history_context = "\n\nConversation history:\n"
+                for hist_msg in history_messages[-6:]:  # Last 6 messages (3 exchanges)
+                    if hasattr(hist_msg, "content"):
+                        msg_type = (
+                            "User"
+                            if hist_msg.__class__.__name__ == "HumanMessage"
+                            else "Assistant"
+                        )
+                        history_context += f"{msg_type}: {hist_msg.content}\n"
+
         # Summarizer as a child step
         print(f"summarizing {len(agent_responses)} agent responses")
         prompt = "please read the following responses and provide a brief response to the user. "
-        summary_prompt = prompt + message.content + " ".join(agent_responses)
+        summary_prompt = (
+            prompt
+            + history_context
+            + "\n\nCurrent query: "
+            + message.content
+            + "\n\nAgent responses: "
+            + " ".join(agent_responses)
+        )
 
         async with cl.Step(name="Summarizer", type="llm") as summarizer_step:
             summarizer_step.input = summary_prompt

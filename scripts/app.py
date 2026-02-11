@@ -16,6 +16,7 @@ import os
 from rai import get_llm_model, get_tracing_callbacks
 from rai.communication.ros2 import ROS2Connector
 from typing import List
+import asyncio
 
 
 from bandu.agents import AgentType, make_team, create_agent_node
@@ -113,12 +114,49 @@ async def on_message(message: cl.Message):
     async with cl.Step(name="Supervisor", type="llm") as supervisor_step:
         supervisor_step.input = message.content
 
+        # Show processing indicator
+        processing_msg = cl.Message(
+            content="🔄 Processing your request...", author="System"
+        )
+        await processing_msg.send()
+
         # Stream the graph with just the current user message
         # The checkpointer will handle conversation history per thread_id
-        for chunk in graph.stream(
-            {"messages": [HumanMessage(content=message.content)]},
-            config=config,
-        ):
+        # Use asyncio to prevent blocking the event loop
+        def stream_graph():
+            """Run graph.stream in a non-blocking manner"""
+            return list(
+                graph.stream(
+                    {"messages": [HumanMessage(content=message.content)]},
+                    config=config,
+                )
+            )
+
+        try:
+            # Run the blocking stream call in a thread pool to prevent UI freezing
+            stream_chunks = await asyncio.wait_for(
+                asyncio.to_thread(stream_graph), timeout=120.0  # 2 minute timeout
+            )
+
+            # Remove processing indicator
+            await processing_msg.remove()
+
+        except asyncio.TimeoutError:
+            await processing_msg.remove()
+            error_msg = "⚠️ Request timed out after 2 minutes. The LLM is taking too long to respond. Please try a simpler query."
+            await cl.Message(content=error_msg, author="System").send()
+            return
+        except Exception as e:
+            await processing_msg.remove()
+            error_msg = f"❌ Error processing request: {str(e)}"
+            logger.error(f"Error in graph stream: {e}", exc_info=True)
+            await cl.Message(content=error_msg, author="System").send()
+            return
+
+        # Process all chunks
+        for chunk in stream_chunks:
+            # Yield control to event loop periodically
+            await asyncio.sleep(0)
             logger.info(f"Chunk: {chunk}")
             chunks.append(chunk)
             agent_response = next(iter(chunk.items()))[1]  # .get("messages", [""])

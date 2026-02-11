@@ -29,6 +29,7 @@ from a2a.types import Message, TextPart, Part, Role
 import httpx
 from langchain_core.tools import tool
 import logging
+import os
 from rai import get_llm_model
 from rai.agents.langchain.core import create_react_runnable
 from rai.communication.ros2 import ROS2Connector
@@ -42,8 +43,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # AGENT URLs
-NAVIGATION_AGENT_URL = "http://asus-pc.netbird.cloud:9002"
-MANIPULATION_AGENT_URL = "http://asus-pc.netbird.cloud:9003"
+NAVIGATION_AGENT_URL = os.getenv("NAVIGATION_AGENT_URL", "")
+MANIPULATION_AGENT_URL = os.getenv("MANIPULATION_AGENT_URL", "")
 
 
 @tool
@@ -57,7 +58,7 @@ async def query_navigation_agent(query: str) -> str:
     Returns:
         str: The navigation agent's response text, or an error message describing a failure to contact or communicate with the agent.
     """
-    return await _query_navigation_agent(NAVIGATION_AGENT_URL, query)
+    return await _query_agent(NAVIGATION_AGENT_URL, query)
 
 
 @tool
@@ -71,10 +72,10 @@ async def query_manipulation_agent(query: str) -> str:
     Returns:
         str: The manipulation agent's response text, or an error message if the request failed.
     """
-    return await _query_navigation_agent(MANIPULATION_AGENT_URL, query)
+    return await _query_agent(MANIPULATION_AGENT_URL, query)
 
 
-async def _query_navigation_agent(agent_url: str, query: str) -> str:
+async def _query_agent(agent_url: str, query: str) -> str:
     """
     Send a natural-language query to a remote A2A agent and return the agent's response or an error message.
     

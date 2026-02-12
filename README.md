@@ -46,6 +46,9 @@ uv run start_manipulation_agent
 
 # start navigation
 uv run start_navigation_agent
+
+# manual test for a2a agents
+uv run start_manipulation_agent
 ```
 
 ## UI

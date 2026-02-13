@@ -74,6 +74,7 @@ def make_supervisor_node(
         "Manipulator agent can be used to control the robot's arms and grippers."
         "Perception agent can be used to get images from the robot's camera."
         "Summarize the response from the workers and provide a final answer."
+        "If it is a normal query, not a task, then you can simply answer it, without calling other sub agents."
         # " respond with the worker to act next. If the task is complete and end the conversation"
         # " task and respond with their results and status. When finished,"
         # " respond with FINISH."

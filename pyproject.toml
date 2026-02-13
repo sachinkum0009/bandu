@@ -27,5 +27,7 @@ package = true
 
 [dependency-groups]
 dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.1",
     "pytest>=9.0.2",
 ]

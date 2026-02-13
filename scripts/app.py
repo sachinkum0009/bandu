@@ -34,6 +34,9 @@ connector = ROS2Connector(executor_type="single_threaded")
 node = connector.node
 node.declare_parameter("conversion_ratio", 1.0)
 
+## a2a supervisor
+# supervisor_agent = create_agent(connector)
+
 ## Create the agents
 basic = create_agent_node("basic", AgentType.BASIC, connector)
 navigator = create_agent_node("navigator", AgentType.NAVIGATION, connector)
@@ -135,7 +138,8 @@ async def on_message(message: cl.Message):
         try:
             # Run the blocking stream call in a thread pool to prevent UI freezing
             stream_chunks = await asyncio.wait_for(
-                asyncio.to_thread(stream_graph), timeout=120.0  # 2 minute timeout
+                asyncio.to_thread(stream_graph),
+                timeout=5 * 60.0,  # 5 minute timeout # TODO: Add param in config file
             )
 
             # Remove processing indicator

@@ -40,7 +40,9 @@ node.declare_parameter("conversion_ratio", 1.0)
 ## Create the agents
 basic = create_agent_node("basic", AgentType.BASIC, connector)
 navigator = create_agent_node("navigator", AgentType.NAVIGATION, connector)
-manipulator = create_agent_node("manipulator", AgentType.MANIPULATION, connector)
+manipulator = create_agent_node(
+    "manipulator", AgentType.MANIPULATION, connector, manipulator_frame="panda_link0"
+)
 perception = create_agent_node("perception", AgentType.PERCEPTION, connector)
 
 builder = make_team([basic, navigator, manipulator, perception])  # type: ignore

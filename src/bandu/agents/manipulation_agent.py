@@ -9,7 +9,7 @@ from typing import List
 
 from rai.tools.ros2.base import BaseROS2Tool
 from rai import get_llm_model
-from rai.agents.langchain.core import create_conversational_agent
+from rai.agents.langchain.core import create_react_runnable
 from rai.communication.ros2 import (
     ROS2Connector,
 )
@@ -19,43 +19,42 @@ from rai.tools.ros2.manipulation import (
     ResetArmTool,
 )
 from rai_whoami.models import EmbodimentInfo
-from rai.tools.ros2.simple import GetROS2ImageConfiguredTool
 
 # from rai_open_set_vision.tools import GetGrabbingPointTool
 
 
-def create_agent(connector: ROS2Connector):
+def create_agent(connector: ROS2Connector, manipulator_frame: str = "base_link"):
     """
     Create a manipulation agent with specific tools and embodiment info.
     """
     tools: List[BaseROS2Tool] = [
-        MoveToPointTool(connector=connector, manipulator_frame="base_link"),
+        MoveToPointTool(connector=connector, manipulator_frame=manipulator_frame),
         # GetObjectPositionsTool(
         #     connector=connector,
-        #     target_frame="panda_link0",
+        #     target_frame=manipulator_frame,
         #     source_frame="camera_link",
         #     camera_topic="/image_raw",
         #     depth_topic="/depth_image_raw",
         #     camera_info_topic="/color_camera_info",
         #     get_grabbing_point_tool=GetGrabbingPointTool(connector=connector),
         # ),
-        MoveObjectFromToTool(connector=connector, manipulator_frame="panda_link0"),
-        ResetArmTool(connector=connector, manipulator_frame="panda_link0"),
-        GetROS2ImageConfiguredTool(connector=connector, topic="/image_raw"),
+        MoveObjectFromToTool(connector=connector, manipulator_frame=manipulator_frame),
+        ResetArmTool(connector=connector, manipulator_frame=manipulator_frame),
+        # GetROS2ImageConfiguredTool(connector=connector, topic="/image_raw"), # NOTE: Should be moved to perception agent
     ]
 
     llm = get_llm_model(model_type="complex_model", streaming=True)
     embodiment_info = EmbodimentInfo.from_file(
         "embodiments/manipulation_embodiment.json"
     )
-    agent = create_conversational_agent(
-        llm=llm,
-        tools=tools,
-        system_prompt=embodiment_info.to_langchain(),
-    )
-    # agent = create_react_runnable(
+    # agent = create_conversational_agent(
     #     llm=llm,
     #     tools=tools,
     #     system_prompt=embodiment_info.to_langchain(),
     # )
+    agent = create_react_runnable(
+        llm=llm,
+        tools=tools,
+        system_prompt=embodiment_info.to_langchain(),
+    )
     return agent

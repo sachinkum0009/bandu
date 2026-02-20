@@ -148,7 +148,10 @@ def _resolve_agent(agent):
 
 
 def create_agent_node(
-    name: str, agent_type: AgentType, connector: ROS2Connector
+    name: str,
+    agent_type: AgentType,
+    connector: ROS2Connector,
+    manipulator_frame: str = "base_link",
 ) -> tuple[str, Callable]:
     """Create an agent and return a tuple of (name, agent)."""
     if agent_type == AgentType.BASIC:
@@ -162,16 +165,6 @@ def create_agent_node(
 
         return (name, node)
         # return (name, agent)
-    elif agent_type == AgentType.INFLUENCER:
-        from .influencer_agent import create_agent as create_influencer_agent
-
-        agent = create_influencer_agent(connector)
-        agent = _resolve_agent(agent)
-
-        def node(state: State) -> Command[Literal["supervisor"]]:
-            return create_node(state, agent, name)
-
-        return (name, node)
 
         # def node(state: State) -> Command[Literal["supervisor"]]:
         #     return create_node(state, agent, name)
@@ -194,7 +187,9 @@ def create_agent_node(
     elif agent_type == AgentType.MANIPULATION:
         from .manipulation_agent import create_agent as create_manipulation_agent
 
-        agent = create_manipulation_agent(connector)
+        agent = create_manipulation_agent(
+            connector, manipulator_frame=manipulator_frame
+        )
         agent = _resolve_agent(agent)
 
         def node(state: State) -> Command[Literal["supervisor"]]:

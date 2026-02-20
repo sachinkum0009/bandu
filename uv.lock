@@ -420,7 +420,7 @@ requires-dist = [
     { name = "posthog", specifier = ">=7.6.0" },
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "rai-core", specifier = ">=2.6.0" },
+    { name = "rai-core", specifier = ">=2.8.3" },
     { name = "rai-perception", specifier = ">=0.2.1" },
     { name = "rai-whoami", specifier = ">=0.0.5" },
 ]
@@ -4996,7 +4996,7 @@ wheels = [
 
 [[package]]
 name = "rai-core"
-version = "2.6.0"
+version = "2.8.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "coloredlogs" },
@@ -5022,9 +5022,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "transforms3d" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4b/2d/6ac66096b41f2a55a806bf12307e506359de7dbd7cf6b2a6d45625aeac2e/rai_core-2.6.0.tar.gz", hash = "sha256:57c73b60802b5631bff5ab1e9c9d1586b8e6edeff94291bdd1b2e16b76b748c6", size = 76342, upload-time = "2025-12-19T12:41:37.561Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/c2/759841b32b5446f347e3bae87a932985b2a9d036ee0199af3748a8da9468/rai_core-2.8.3.tar.gz", hash = "sha256:cdc1f46763fcbc8d8c96184f5f6ea15a637f62638c4acf1fa89eff0046452eee", size = 80264, upload-time = "2026-02-04T12:34:54.31Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/42/32afedbef4f272ad3edd3aec2acb8ca0acae78ee4cbb64aa3cf6181b06cb/rai_core-2.6.0-py3-none-any.whl", hash = "sha256:98d2929aabfbe3017cab8f3752b0cc6b4300111a0cba0b834203ce97599deaba", size = 135276, upload-time = "2025-12-19T12:41:35.937Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/87/03c11e5acd91abc0ca97949ee4e3b3b16c52ed646d315e81c8a79fc9d1e7/rai_core-2.8.3-py3-none-any.whl", hash = "sha256:8d773989455ea25f3514e2e8275a17e175d8f2194c5be9f50cc5c4daaa022fd4", size = 141206, upload-time = "2026-02-04T12:34:53.051Z" },
 ]
 
 [[package]]

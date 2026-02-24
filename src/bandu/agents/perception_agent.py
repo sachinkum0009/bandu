@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 """
-Basic Agent to communicate with ros2 nodes
+Perception Agent to communicate with ros2 nodes
 
 author: Sachin Kumar
 date: 2025-09-15
@@ -54,6 +54,7 @@ def create_agent(connector: ROS2Connector):
 
     llm = get_llm_model(model_type="complex_model", streaming=True)
     embodiment_info = EmbodimentInfo.from_file("embodiments/perception_embodiment.json")
+
     # agent = create_conversational_agent(
     #     llm=llm,
     #     tools=tools,

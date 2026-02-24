@@ -41,6 +41,7 @@ uv run chainlit run scripts/app.py --host 0.0.0.0
 ```bash
 # source ros
 source /opt/ros/jazzy/setup.bash # change jazzy with your ros distro
+
 # start manipulation
 uv run start_manipulation_agent
 
@@ -49,6 +50,9 @@ uv run start_navigation_agent
 
 # manual test for a2a agents
 uv run start_manipulation_agent
+
+# start supervisor agent
+./start_app.sh
 ```
 
 ## UI

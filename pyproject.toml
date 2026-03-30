@@ -1,7 +1,7 @@
 [project]
 name = "bandu"
 version = "0.1.0"
-description = "Add your description here"
+description = "Agentic framework for robotics applications, built on top of LangChain and RAI."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -35,26 +35,28 @@ except ImportError:
         "rclpy is not installed. Please install ROS2 and source workspace to run this application."
     )
 
+import asyncio
+import logging
+import os
+from typing import List
+
 import chainlit as cl
 from dotenv import load_dotenv
-import logging
-from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import HumanMessage
-import os
+from langgraph.checkpoint.memory import InMemorySaver
 from rai import get_llm_model, get_tracing_callbacks
 from rai.communication.ros2 import ROS2Connector
-from typing import List
-import asyncio
 
-
-from bandu.agents import AgentType, make_team, create_agent_node
+from bandu.agents import AgentType, create_agent_node, make_team
 from bandu.app import ToolTrackingCallback
+from bandu.logger.logger_config import get_logger, setup_logging
 
 load_dotenv()
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() == "true"
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(name="bandu")
+
+setup_logging(logging.INFO)
+logger = get_logger("bandu")
 
 ## Initialize ROS2
 rclpy.init()
@@ -300,7 +302,7 @@ async def on_message(message: cl.Message):
                         history_context += f"{msg_type}: {hist_msg.content}\n"
 
         # Summarizer as a child step
-        print(f"summarizing {len(agent_responses)} agent responses")
+        logger.info(f"summarizing {len(agent_responses)} agent responses")
         prompt = "please read the following responses and provide a brief response to the user. "
         summary_prompt = (
             prompt
@@ -328,6 +330,6 @@ async def on_message(message: cl.Message):
 
             summarizer_step.output = summary_content
 
-    print(f"Final summarized response: {msg.content}")
-    print("-" * 100)
+    logger.info(f"Final summarized response: {msg.content}")
+    logger.info("-" * 100)
     await msg.update()

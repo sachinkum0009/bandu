@@ -28,22 +28,20 @@ author: Sachin Kumar
 date: 2025-09-07
 """
 
+import asyncio
+import inspect
 from enum import Enum
-from typing import Literal, TypedDict, Callable
+from typing import Any, Callable, Literal, TypedDict
+
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage, trim_messages
+from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
 from rai import get_llm_model
 from rai.communication.ros2 import (
     ROS2Connector,
 )
-
-from langgraph.types import Command
-from langgraph.graph import StateGraph, MessagesState, START, END
-from langgraph.graph.state import CompiledStateGraph
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, trim_messages
-
-import asyncio
-import inspect
-from typing import Any
 
 
 class State(MessagesState):
@@ -77,9 +75,7 @@ def make_summarizer_node(
         trimmed_messages = trim_messages(messages, max_tokens=3000, llm=llm)
         response = llm.invoke(trimmed_messages)
         return Command(
-            update={
-                "messages": [HumanMessage(content=response.content, name="summarizer")]
-            },
+            update={"messages": [HumanMessage(content=response.content)]},
             goto="supervisor",
         )
 
@@ -114,6 +110,9 @@ def make_supervisor_node(
         messages = [
             {"role": "system", "content": system_prompt},
         ] + state["messages"]
+        for m in messages:
+            if hasattr(m, "name"):
+                m.name = None
         response = llm.with_structured_output(Router).invoke(messages)
         goto = response["next"]  # type: ignore
         if goto == "FINISH":
@@ -129,11 +128,7 @@ def create_node(
     """Create a node function that invokes an agent and returns to supervisor."""
     result = agent.invoke(state)
     return Command(
-        update={
-            "messages": [
-                HumanMessage(content=result["messages"][-1].content, name=agent_name)
-            ]
-        },
+        update={"messages": [HumanMessage(content=result["messages"][-1].content)]},
         # We want our workers to ALWAYS "report back" to the supervisor when done
         goto="supervisor",
     )

@@ -38,13 +38,14 @@ except ImportError:
 import asyncio
 import logging
 import os
+import time
 from typing import List
 
 import chainlit as cl
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
-from rai import get_llm_model, get_tracing_callbacks
+from rai import get_tracing_callbacks
 from rai.communication.ros2 import ROS2Connector
 
 from bandu.agents import AgentType, create_agent_node, make_team
@@ -80,9 +81,6 @@ builder = make_team([basic, navigator, manipulator, perception])  # type: ignore
 
 checkpointer = InMemorySaver()  # use sqlite in future
 graph = builder.compile(checkpointer=checkpointer)
-
-## summarizer
-summarizer_llm = get_llm_model(model_type="simple_model", streaming=True)
 
 
 if ENABLE_AUTH:
@@ -127,6 +125,7 @@ async def set_starters(user=None):
 
 @cl.on_message
 async def on_message(message: cl.Message):
+    debug_start_time = time.time()
     # Get the unique session ID from Chainlit
     session_id = cl.user_session.get("id")
     logger.info(f"Session id: {session_id}")
@@ -288,54 +287,20 @@ async def on_message(message: cl.Message):
 
         supervisor_step.output = f"Coordinated {len(agent_responses)} agent responses"
 
-        # Get conversation history from checkpointer for summarizer context
-        checkpoint_config = {"configurable": {"thread_id": session_id}}
-        checkpoint_state = checkpointer.get(checkpoint_config)
-
-        # Build conversation history context
-        history_context = ""
-        if checkpoint_state and "channel_values" in checkpoint_state:
-            history_messages = checkpoint_state["channel_values"].get("messages", [])
-            if history_messages:
-                history_context = "\n\nConversation history:\n"
-                for hist_msg in history_messages[-6:]:  # Last 6 messages (3 exchanges)
-                    if hasattr(hist_msg, "content"):
-                        msg_type = (
-                            "User"
-                            if hist_msg.__class__.__name__ == "HumanMessage"
-                            else "Assistant"
-                        )
-                        history_context += f"{msg_type}: {hist_msg.content}\n"
-
-        # Summarizer as a child step
+        # Stream final response directly from agent output (skip redundant LLM summarizer call)
         logger.info(f"summarizing {len(agent_responses)} agent responses")
-        prompt = "please read the following responses and provide a brief response to the user. "
-        summary_prompt = (
-            prompt
-            + history_context
-            + "\n\nCurrent query: "
-            + message.content
-            + "\n\nAgent responses: "
-            + " ".join(agent_responses)
+        final_response = (
+            "\n\n".join(r for r in agent_responses if r.strip())
+            or "I processed your request."
         )
 
-        async with cl.Step(name="Summarizer", type="llm") as summarizer_step:
-            summarizer_step.input = summary_prompt
-            summary_content = ""
-
-            # Stream the summarized response
-            async for chunk in summarizer_llm.astream(summary_prompt):
-                if hasattr(chunk, "content") and chunk.content:
-                    content = (
-                        chunk.content
-                        if isinstance(chunk.content, str)
-                        else str(chunk.content)
-                    )
-                    await msg.stream_token(content)
-                    summary_content += content
-
-            summarizer_step.output = summary_content
+        async with cl.Step(name="Response", type="llm") as response_step:
+            response_step.input = message.content
+            for token in final_response:
+                await msg.stream_token(token)
+            response_step.output = final_response
 
     logger.info(f"Final summarized response: {msg.content}")
     logger.info("-" * 100)
+    print(f"Total time to process query: {time.time() - debug_start_time}")
     await msg.update()

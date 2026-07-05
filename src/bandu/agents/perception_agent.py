@@ -38,7 +38,6 @@ from rai_perception.tools import (
     GetDistanceToObjectsTool,
     GetObjectPositionsTool,
 )
-
 from rai_whoami.models import EmbodimentInfo
 
 

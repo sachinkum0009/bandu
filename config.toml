@@ -1,7 +1,7 @@
 [vendor]
-simple_model = "ollama"
-complex_model = "ollama"
-embeddings_model = "ollama"
+simple_model = "openai"
+complex_model = "openai"
+embeddings_model = "openai"
 
 [aws]
 simple_model = "anthropic.claude-3-haiku-20240307-v1:0"
@@ -10,22 +10,22 @@ embeddings_model = "amazon.titan-embed-text-v1"
 region_name = "us-east-1"
 
 [openai]
-simple_model = "gpt-4o-mini"
-complex_model = "gpt-4o"
-embeddings_model = "text-embedding-ada-002"
-base_url = "https://api.openai.com/v1/"
+simple_model = "mistral-small-latest"
+complex_model = "mistral-small-2506"
+embeddings_model = "mistral-embed"
+base_url = "https://api.mistral.ai/v1/"
 
 [ollama]
-base_url = "http://10.147.19.232:11434"
-simple_model = "qwen3"
-complex_model = "qwen3"
+base_url = "http://asus-pc.netbird.cloud:11434"
+simple_model = "qwen3:1.7b"
+complex_model = "qwen3:4b"
 embeddings_model = "qwen3-embedding:0.6b"
 
 [tracing]
 project = "rai"
 
 [tracing.langfuse]
-use_langfuse = false
+use_langfuse = true
 host = "https://cloud.langfuse.com"
 
 [tracing.langsmith]

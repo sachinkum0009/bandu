@@ -49,6 +49,7 @@ from rai.communication.ros2 import ROS2Connector
 
 from bandu.agents import AgentType, create_agent_node, make_team
 from bandu.app import ToolTrackingCallback
+from bandu.bridge import ImageBridge
 from bandu.logger.logger_config import get_logger, setup_logging
 
 load_dotenv()
@@ -62,7 +63,7 @@ logger = get_logger("bandu")
 rclpy.init()
 connector = ROS2Connector(executor_type="single_threaded")
 node = connector.node
-node.declare_parameter("conversion_ratio", 1.0)
+node.declare_parameter("conversion_ratio", 1.0)  # type: ignore
 
 ## a2a supervisor
 # supervisor_agent = create_agent(connector)
@@ -113,7 +114,7 @@ async def set_starters(user=None):
         ),
         cl.Starter(
             label="What is Robot's Temperature?",
-            message="Can you help me understand the current temperature of the robot?",
+            message="Can you tell me what is the current temperature of the robot?",
             icon="/public/thermometer.png",
         ),
         cl.Starter(
@@ -140,6 +141,11 @@ async def on_message(message: cl.Message):
 
     msg = cl.Message(content="", author="Agent")
     await msg.update()
+
+    image_bridge = ImageBridge()
+    image_bridge.get_image("my_topic")
+    img = image_bridge.get_image("topic")
+    img
 
     tool_name = None
     chunks = []

@@ -1,3 +1,26 @@
+# MIT License
+
+# Copyright (c) 2025 Sachin Kumar
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
 """
 App to integrate ROS2 with AI Agents using RAI
 
@@ -5,43 +28,60 @@ Author: Sachin Kumar
 Date: 2025-08-12
 """
 
-import rclpy
+try:
+    import rclpy  # type: ignore
+except ImportError:
+    raise ImportError(
+        "rclpy is not installed. Please install ROS2 and source workspace to run this application."
+    )
 
-import chainlit as cl
+import asyncio
 import logging
-from rai import get_llm_model, get_tracing_callbacks
-from rai.communication.ros2 import ROS2Connector
+import os
+import time
 from typing import List
 
+import chainlit as cl
+from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.memory import InMemorySaver
+from rai import get_tracing_callbacks
+from rai.communication.ros2 import ROS2Connector
 
-from bandu.agents import AgentType, make_team, create_agent_node
+from bandu.agents import AgentType, create_agent_node, make_team
 from bandu.app import ToolTrackingCallback
+from bandu.bridge import ImageBridge
+from bandu.logger.logger_config import get_logger, setup_logging
 
-ENABLE_AUTH = False
+load_dotenv()
+ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() == "true"
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(name="bandu")
 
-history = []
+setup_logging(logging.INFO)
+logger = get_logger("bandu")
 
 ## Initialize ROS2
 rclpy.init()
 connector = ROS2Connector(executor_type="single_threaded")
 node = connector.node
-node.declare_parameter("conversion_ratio", 1.0)
+node.declare_parameter("conversion_ratio", 1.0)  # type: ignore
+
+## a2a supervisor
+# supervisor_agent = create_agent(connector)
 
 ## Create the agents
 basic = create_agent_node("basic", AgentType.BASIC, connector)
 navigator = create_agent_node("navigator", AgentType.NAVIGATION, connector)
-manipulator = create_agent_node("manipulator", AgentType.MANIPULATION, connector)
+manipulator = create_agent_node(
+    "manipulator", AgentType.MANIPULATION, connector, manipulator_frame="panda_link0"
+)
 perception = create_agent_node("perception", AgentType.PERCEPTION, connector)
 
-builder = make_team([basic, navigator, manipulator, perception])
+builder = make_team([basic, navigator, manipulator, perception])  # type: ignore
 
-graph = builder.compile()
+checkpointer = InMemorySaver()  # use sqlite in future
+graph = builder.compile(checkpointer=checkpointer)
 
-## summarizer
-summarizer_llm = get_llm_model(model_type="simple_model", streaming=True)
 
 if ENABLE_AUTH:
 
@@ -72,7 +112,7 @@ async def set_starters(user=None):
         ),
         cl.Starter(
             label="What is Robot's Temperature?",
-            message="Can you help me understand the current temperature of the robot?",
+            message="Can you tell me what is the current temperature of the robot?",
             icon="/public/thermometer.png",
         ),
         cl.Starter(
@@ -85,26 +125,79 @@ async def set_starters(user=None):
 
 @cl.on_message
 async def on_message(message: cl.Message):
+    debug_start_time = time.time()
+    # Get the unique session ID from Chainlit
+    session_id = cl.user_session.get("id")
+    logger.info(f"Session id: {session_id}")
     logger.info(f"Received message: {message.content}")
+    # Create tool tracking callback
+    tool_tracker = ToolTrackingCallback()
+
+    config = {
+        "callbacks": [*get_tracing_callbacks(), tool_tracker],
+        "configurable": {"thread_id": session_id},
+    }
 
     msg = cl.Message(content="", author="Agent")
     await msg.update()
-    history.append(message.content)
+
+    image_bridge = ImageBridge()
+    image_bridge.get_image("my_topic")
+    img = image_bridge.get_image("topic")
+    img
+
     tool_name = None
     chunks = []
     agent_responses: List[str] = []
-
-    # Create tool tracking callback
-    tool_tracker = ToolTrackingCallback()
 
     # Create parent supervisor step
     async with cl.Step(name="Supervisor", type="llm") as supervisor_step:
         supervisor_step.input = message.content
 
-        for chunk in graph.stream(
-            {"messages": [message.content]},
-            config={"callbacks": [*get_tracing_callbacks(), tool_tracker]},
-        ):
+        # Show processing indicator
+        processing_msg = cl.Message(
+            content="🔄 Processing your request...", author="System"
+        )
+        await processing_msg.send()
+
+        # Stream the graph with just the current user message
+        # The checkpointer will handle conversation history per thread_id
+        # Use asyncio to prevent blocking the event loop
+        def stream_graph():
+            """Run graph.stream in a non-blocking manner"""
+            return list(
+                graph.stream(
+                    {"messages": [HumanMessage(content=message.content)]},
+                    config=config,
+                )
+            )
+
+        try:
+            # Run the blocking stream call in a thread pool to prevent UI freezing
+            stream_chunks = await asyncio.wait_for(
+                asyncio.to_thread(stream_graph),
+                timeout=5 * 60.0,  # 5 minute timeout # TODO: Add param in config file
+            )
+
+            # Remove processing indicator
+            await processing_msg.remove()
+
+        except asyncio.TimeoutError:
+            await processing_msg.remove()
+            error_msg = "⚠️ Request timed out after 2 minutes. The LLM is taking too long to respond. Please try a simpler query."
+            await cl.Message(content=error_msg, author="System").send()
+            return
+        except Exception as e:
+            await processing_msg.remove()
+            error_msg = f"❌ Error processing request: {str(e)}"
+            logger.error(f"Error in graph stream: {e}", exc_info=True)
+            await cl.Message(content=error_msg, author="System").send()
+            return
+
+        # Process all chunks
+        for chunk in stream_chunks:
+            # Yield control to event loop periodically
+            await asyncio.sleep(0)
             logger.info(f"Chunk: {chunk}")
             chunks.append(chunk)
             agent_response = next(iter(chunk.items()))[1]  # .get("messages", [""])
@@ -194,28 +287,20 @@ async def on_message(message: cl.Message):
 
         supervisor_step.output = f"Coordinated {len(agent_responses)} agent responses"
 
-        # Summarizer as a child step
-        print(f"summarizing {len(agent_responses)} agent responses")
-        prompt = "please read the following responses and provide a brief response to the user. "
-        summary_prompt = prompt + message.content + " ".join(agent_responses)
+        # Stream final response directly from agent output (skip redundant LLM summarizer call)
+        logger.info(f"summarizing {len(agent_responses)} agent responses")
+        final_response = (
+            "\n\n".join(r for r in agent_responses if r.strip())
+            or "I processed your request."
+        )
 
-        async with cl.Step(name="Summarizer", type="llm") as summarizer_step:
-            summarizer_step.input = summary_prompt
-            summary_content = ""
+        async with cl.Step(name="Response", type="llm") as response_step:
+            response_step.input = message.content
+            for token in final_response:
+                await msg.stream_token(token)
+            response_step.output = final_response
 
-            # Stream the summarized response
-            async for chunk in summarizer_llm.astream(summary_prompt):
-                if hasattr(chunk, "content") and chunk.content:
-                    content = (
-                        chunk.content
-                        if isinstance(chunk.content, str)
-                        else str(chunk.content)
-                    )
-                    await msg.stream_token(content)
-                    summary_content += content
-
-            summarizer_step.output = summary_content
-
-    print(f"Final summarized response: {msg.content}")
-    print("-" * 100)
+    logger.info(f"Final summarized response: {msg.content}")
+    logger.info("-" * 100)
+    print(f"Total time to process query: {time.time() - debug_start_time}")
     await msg.update()

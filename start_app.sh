@@ -1,3 +1,5 @@
 #!/usr/bin/bash
 
-chainlit run app.py --host 0.0.0.0
+# source /opt/ros/jazzy/setup.bash
+
+chainlit run scripts/app.py --host 0.0.0.0

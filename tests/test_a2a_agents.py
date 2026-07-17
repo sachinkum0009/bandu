@@ -20,25 +20,32 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import asyncio
+import rclpy
+from dotenv import load_dotenv
+from bandu.agents.supervisor_agent import create_agent
+from rai.communication.ros2 import ROS2Connector
 
-from typing import Any
-
-from langchain_core.callbacks import BaseCallbackHandler
+load_dotenv()
 
 
-# Custom callback to track tool usage
-class ToolTrackingCallback(BaseCallbackHandler):
-    def __init__(self):
-        self.tool_calls = []
-        self.tool_results = []
+async def main():
+    rclpy.init()
+    connector = ROS2Connector(executor_type="single_threaded")
 
-    def on_tool_start(
-        self, serialized: dict[str, Any], input_str: str, **kwargs
-    ) -> None:
-        tool_name = serialized.get("name", "Unknown Tool")
-        self.tool_calls.append({"name": tool_name, "input": input_str})
-        print(f"[ToolTracker] Tool started: {tool_name}")
+    # Create the supervisor agent
+    supervisor_agent = create_agent(connector)
 
-    def on_tool_end(self, output: str, **kwargs) -> None:
-        self.tool_results.append({"output": output})
-        print(f"[ToolTracker] Tool ended with output: {output}")
+    # Invoke the agent with a query
+    query = "Grab object using robot arm to position x: 1.0, y: 2.0, z: 0.5"
+    response = await supervisor_agent.ainvoke({"messages": [query]})
+
+    print(response)
+
+    print("task finished")
+
+    rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

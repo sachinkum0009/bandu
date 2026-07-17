@@ -20,25 +20,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
-from typing import Any
-
-from langchain_core.callbacks import BaseCallbackHandler
+import logging
+import sys
 
 
-# Custom callback to track tool usage
-class ToolTrackingCallback(BaseCallbackHandler):
-    def __init__(self):
-        self.tool_calls = []
-        self.tool_results = []
+def setup_logging(level=logging.INFO):
+    """Initializes the global logging configuration."""
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
-    def on_tool_start(
-        self, serialized: dict[str, Any], input_str: str, **kwargs
-    ) -> None:
-        tool_name = serialized.get("name", "Unknown Tool")
-        self.tool_calls.append({"name": tool_name, "input": input_str})
-        print(f"[ToolTracker] Tool started: {tool_name}")
+    # Standard Output handler (Console)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
 
-    def on_tool_end(self, output: str, **kwargs) -> None:
-        self.tool_results.append({"output": output})
-        print(f"[ToolTracker] Tool ended with output: {output}")
+    # Root logger configuration
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+
+    # Avoid adding multiple handlers if setup is called twice
+    if not root_logger.handlers:
+        root_logger.addHandler(console_handler)
+
+
+def get_logger(name):
+    """Returns a logger instance for a specific module."""
+    return logging.getLogger(name)

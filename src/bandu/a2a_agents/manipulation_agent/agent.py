@@ -31,23 +31,22 @@ from rai.tools.ros2.manipulation import (
 from rai.communication.ros2 import (
     ROS2Connector,
 )
-from rai.tools.ros2.simple import GetROS2ImageConfiguredTool
 from rai.agents.langchain.core import create_react_runnable
 
 # from langchain.messages import SystemMessage, HumanMessage
 
 
 class ManipulatorAgent:
-    def __init__(self, connector: ROS2Connector):
+    def __init__(self, connector: ROS2Connector, manipulator_frame: str = "base_link"):
         llm = get_llm_model(model_type="complex_model", streaming=True)
         embodiment_info = EmbodimentInfo.from_file(
             "embodiments/manipulation_embodiment.json"
         )
         tools: list[BaseROS2Tool] = [
-            MoveToPointTool(connector=connector, manipulator_frame="base_link"),
+            MoveToPointTool(connector=connector, manipulator_frame=""),
             MoveObjectFromToTool(connector=connector, manipulator_frame="panda_link0"),
             ResetArmTool(connector=connector, manipulator_frame="panda_link0"),
-            GetROS2ImageConfiguredTool(connector=connector, topic="/image_raw"),
+            # GetROS2ImageConfiguredTool(connector=connector, topic="/image_raw"),
         ]
 
         self.agent = create_react_runnable(

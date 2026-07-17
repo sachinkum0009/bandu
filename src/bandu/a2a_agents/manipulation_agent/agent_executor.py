@@ -39,8 +39,16 @@ class ManipulatorAgentExecutor(AgentExecutor):
         event_queue: EventQueue,
     ) -> None:
         user_input = context.get_user_input()
-        manipulation_response = await self.agent.ainvoke(user_input)
-        await event_queue.enqueue_event(new_agent_text_message(manipulation_response))
+        # LangGraph expects input in the format {"messages": [user_input]}
+        manipulation_response = await self.agent.ainvoke({"messages": [user_input]})
+        # Extract the final message content
+        final_message = manipulation_response["messages"][-1]
+        response_text = (
+            final_message.content
+            if hasattr(final_message, "content")
+            else str(final_message)
+        )
+        await event_queue.enqueue_event(new_agent_text_message(response_text))
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         """Cancel the current operation."""

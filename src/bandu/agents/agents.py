@@ -1,3 +1,26 @@
+# MIT License
+
+# Copyright (c) 2025 Sachin Kumar
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
 """
 Basic Agent to communicate with ros2 nodes
 
@@ -5,21 +28,20 @@ author: Sachin Kumar
 date: 2025-09-07
 """
 
+import asyncio
+import inspect
 from enum import Enum
-from typing import Literal, TypedDict, Callable
+from typing import Any, Callable, Literal, TypedDict
+
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage, trim_messages
+from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
 from rai import get_llm_model
 from rai.communication.ros2 import (
     ROS2Connector,
 )
-
-from langgraph.types import Command
-from langgraph.graph import StateGraph, MessagesState, START, END
-from langgraph.graph.state import CompiledStateGraph
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, trim_messages
-
-import asyncio
-import inspect
 
 
 class State(MessagesState):
@@ -53,9 +75,7 @@ def make_summarizer_node(
         trimmed_messages = trim_messages(messages, max_tokens=3000, llm=llm)
         response = llm.invoke(trimmed_messages)
         return Command(
-            update={
-                "messages": [HumanMessage(content=response.content, name="summarizer")]
-            },
+            update={"messages": [HumanMessage(content=response.content)]},
             goto="supervisor",
         )
 
@@ -74,6 +94,7 @@ def make_supervisor_node(
         "Manipulator agent can be used to control the robot's arms and grippers."
         "Perception agent can be used to get images from the robot's camera."
         "Summarize the response from the workers and provide a final answer."
+        "If it is a normal query, not a task, then you can simply answer it, without calling other sub agents."
         # " respond with the worker to act next. If the task is complete and end the conversation"
         # " task and respond with their results and status. When finished,"
         # " respond with FINISH."
@@ -89,6 +110,9 @@ def make_supervisor_node(
         messages = [
             {"role": "system", "content": system_prompt},
         ] + state["messages"]
+        for m in messages:
+            if hasattr(m, "name"):
+                m.name = None
         response = llm.with_structured_output(Router).invoke(messages)
         goto = response["next"]  # type: ignore
         if goto == "FINISH":
@@ -99,16 +123,12 @@ def make_supervisor_node(
 
 
 def create_node(
-    state: State, agent: CompiledStateGraph, agent_name: str
+    state: State, agent: CompiledStateGraph | Any, agent_name: str
 ) -> Command[Literal["supervisor"]]:
     """Create a node function that invokes an agent and returns to supervisor."""
     result = agent.invoke(state)
     return Command(
-        update={
-            "messages": [
-                HumanMessage(content=result["messages"][-1].content, name=agent_name)
-            ]
-        },
+        update={"messages": [HumanMessage(content=result["messages"][-1].content)]},
         # We want our workers to ALWAYS "report back" to the supervisor when done
         goto="supervisor",
     )
@@ -147,7 +167,10 @@ def _resolve_agent(agent):
 
 
 def create_agent_node(
-    name: str, agent_type: AgentType, connector: ROS2Connector
+    name: str,
+    agent_type: AgentType,
+    connector: ROS2Connector,
+    manipulator_frame: str = "base_link",
 ) -> tuple[str, Callable]:
     """Create an agent and return a tuple of (name, agent)."""
     if agent_type == AgentType.BASIC:
@@ -161,16 +184,6 @@ def create_agent_node(
 
         return (name, node)
         # return (name, agent)
-    elif agent_type == AgentType.INFLUENCER:
-        from .influencer_agent import create_agent as create_influencer_agent
-
-        agent = create_influencer_agent(connector)
-        agent = _resolve_agent(agent)
-
-        def node(state: State) -> Command[Literal["supervisor"]]:
-            return create_node(state, agent, name)
-
-        return (name, node)
 
         # def node(state: State) -> Command[Literal["supervisor"]]:
         #     return create_node(state, agent, name)
@@ -193,7 +206,9 @@ def create_agent_node(
     elif agent_type == AgentType.MANIPULATION:
         from .manipulation_agent import create_agent as create_manipulation_agent
 
-        agent = create_manipulation_agent(connector)
+        agent = create_manipulation_agent(
+            connector, manipulator_frame=manipulator_frame
+        )
         agent = _resolve_agent(agent)
 
         def node(state: State) -> Command[Literal["supervisor"]]:

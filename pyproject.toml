@@ -5,18 +5,18 @@ description = "Agentic framework for robotics applications, built on top of Lang
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "chainlit>=2.9.6",
-    "google-adk[a2a]>=1.14.1",
-    "langchain-chroma>=0.1.2",
-    "langchain-core>=0.3.83",
+    "chainlit>=2.11.1",
+    "fastmcp[tasks]>=3.4.4",
+    "google-adk[a2a]>=2.5.0",
+    "langchain-chroma>=0.2.2",
+    "langchain-core>=0.3.86",
     "langchain-mcp-adapters>=0.2.0",
     "langgraph>=1.0.1",
-    "posthog>=7.6.0",
-    "pre-commit>=4.5.1",
-    "pydantic>=2.12.5",
-    "rai-core>=2.8.3",
-    "rai-perception>=0.2.1",
-    "rai-whoami>=0.0.5",
+    "posthog>=7.25.0",
+    "pydantic>=2.13.4",
+    "rai-core>=2.11.2",
+    "rai-perception>=0.3.0",
+    # "rai-whoami>=0.0.5",
 ]
 
 [project.scripts]
@@ -30,5 +30,6 @@ package = true
 dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",
+    "pre-commit>=4.6.0",
     "pytest>=9.0.2",
 ]
